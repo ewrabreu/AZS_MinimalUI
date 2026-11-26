@@ -7,14 +7,14 @@
 </p>
 
 <h3 align="center">
-  Ultra-minimalist modular UI addon for <strong>Azeroth Survivors Reborn</strong> — built as a hands-on <strong>AI Pair Programming</strong> learning project.
+  Ultra-minimalist modular UI addon for <strong>Azeroth Survivors Reborn</strong>, built as a hands-on <strong>AI Pair Programming</strong> learning project.
 </h3>
 
 ---
 
 ## About This Project
 
-**AZS Minimal UI** was created with the goal of learning and exploring **Pair Programming with Artificial Intelligence** in a project — from design, Lua 5.1 optimization, QA testing, and security auditing.
+**AZS Minimal UI** was created with the goal of learning and exploring **Pair Programming with Artificial Intelligence** in a project, from design, Lua 5.1 optimization, QA testing, and security auditing.
 
 Every module, layout system, buff tracker, and performance optimization in this repository was iteratively designed, refactored, and refined through human + AI collaboration using **Google AI Studio** and **Antigravity**, with **Carbon**, **Argon**, and **Neon** models.
 
