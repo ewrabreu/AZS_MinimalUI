@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/images/banner.jpg" alt="AZS Minimal UI Banner" width="100%" />
-</p>
+
 
 <p align="center">
   <img src="https://img.shields.io/badge/WoW_Client-3.3.5a_(WotLK)-00ffcc?style=for-the-badge&logoColor=white&labelColor=0e1420" alt="WoW 3.3.5a" />
@@ -27,47 +25,14 @@ Every module, layout system, buff tracker, and performance optimization in this 
 
 ### Development Tools
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="docs/images/google-ai-studio.jpg" alt="Google AI Studio" width="100%" /><br />
-      <strong>Google AI Studio</strong><br />
-      <sub>Used for ideation, prompt iteration, API exploration, and rapid prototyping.</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="docs/images/antigravity.jpg" alt="Antigravity" width="100%" /><br />
-      <strong>Antigravity</strong><br />
-      <sub>Used for agentic pair programming, multi-file refactoring, live debugging, and automated QA/security verification.</sub>
-    </td>
-  </tr>
-</table>
-
 ### AI Models
 
-<p align="center">
-  <img src="docs/images/ai-models.jpg" alt="Carbon, Argon, and Neon AI Models" width="100%" />
-</p>
 
 | Model | Role in Pair Programming |
 | :--- | :--- |
 | **Carbon** | Core architecture design, complex Lua 5.1 refactoring, and deep API reverse-engineering |
 | **Argon** | Feature implementation, buff/cooldown tracking logic, UI layout engineering, and translation |
 | **Neon** | Fast iterations, micro-optimizations, syntax validation, and QA/security sweeps |
-
----
-
-## Key Features
-
-- **90% Free Screen Layout** — Clean, dark minimal aesthetic that replaces cluttered native panels while keeping every module individually toggleable (`Minimal` / `Original` / `Both OFF`).
-- **Visual Drag & Scale Editor (`/minui`)** — Unlock all panels, snap to an 8px alignment grid, resize with the corner grip or mouse wheel, fine-tune with a D-pad, and customize fonts & opacity live.
-- **Enhanced Player & Party Buffs** — Tracks active buffs with resolved server/combat-log durations (including damage & invincibility skills), equipped jewelry buffs (rings, trinkets, amulets) for both player and party allies, pre-match talents & racials, and debuffs/hexes.
-- **Buff Cooldowns Window** — Dedicated real-time tracker showing **ACTIVE**, **Recharging**, and **READY** status for item, skill, talent, and racial buffs.
-- **Stats & Caps Panel** — Live survivability score, CDR/Crit/Damage Reduction/Echo cap tracking, and live **Account Gold** earned in the run (`AZS_RUN.gt`) with gold/min breakdown on hover.
-- **360° Camera-Aligned Compass & 3D World Pins** — Off-screen/on-screen radar for chests, lairs, portals, totems, bosses, and downed allies.
-- **3D Skill Attack Ranges** — Ground range rings with edge icons scaled to your Area stat.
-- **Custom Enemy Nameplates & Side Damage Feed** — Rarity-colored bars (Elite, Guardian, Boss) and separate Normal/Crit damage feeds.
-- **Party Health, Party DPS & Loot Panel** — Real-time group tracking and filterable drop history.
-- **Tactical Engine (Beta)** — Run pace monitor, 5-second survivability simulation, stat priority advisor, and live coach alerts.
 
 ---
 
