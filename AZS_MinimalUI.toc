@@ -1,0 +1,33 @@
+## Interface: 30300
+## Title: |cff00ffccAZS Minimal UI|r |cff999999(90% Free Screen · Modular)|r
+## Notes: Ultra-minimalist modular UI for Azeroth Survivors Reborn with 90% free screen, 360 compass, custom nameplates, 3D range rings, and visual drag editor.
+## Author: Ewerton
+## Version: 3.5.0-beta
+## SavedVariables: AZS_MinimalUI_DB
+## OptionalDeps: AzerothSurvivors, AzerothSurvivorsAPI, AzerothSurvivorsUI
+Core\Config.lua
+Core\Utils.lua
+Core\BuffTracker.lua
+Core\Database.lua
+Core\Movable.lua
+AZS_Suppress.lua
+Modules\TopBar.lua
+Modules\BossBar.lua
+Modules\PlayerHUD.lua
+Modules\StoredBadge.lua
+Modules\StatsPanel.lua
+Modules\MeterPanel.lua
+Modules\PartyFrames.lua
+Modules\PartyMeter.lua
+Modules\PlayerBuffs.lua
+Modules\PartyBuffs.lua
+Modules\CooldownBuffs.lua
+Modules\LootPanel.lua
+Modules\DamageFeed.lua
+Modules\Nameplates.lua
+Modules\Compass.lua
+Modules\RangeRings.lua
+Modules\WorldPins.lua
+ModulesBeta\RunPace.lua
+Modules\Editor.lua
+Init.lua
