@@ -6,12 +6,26 @@ local Clamp, ApplyFlat = NS.Clamp, NS.ApplyFlatBackdrop
 local FONTS, BOX_ORDER = NS.FONTS, NS.BOX_ORDER
 
 local THEME = {
-	winBg      = { 0.04, 0.05, 0.08, 0.97 },    winBorder  = { 0.20, 0.25, 0.34, 0.95 },
-	sideBg     = { 0.025, 0.032, 0.052, 0.98 }, bodyBg     = { 0.055, 0.068, 0.100, 0.95 },
-	cardBg     = { 0.075, 0.090, 0.130, 0.92 }, cardBorder = { 0.18, 0.22, 0.30, 0.85 },
-	divider    = { 0.16, 0.20, 0.28, 0.80 },
-	teal = { 0.00, 0.92, 0.78 }, gold = { 1.00, 0.82, 0.26 }, crimson = { 0.95, 0.30, 0.34 },
+	winBg      = { 0.045, 0.038, 0.030, 0.97 }, winBorder  = { 0.56, 0.44, 0.18, 0.95 },
+	sideBg     = { 0.032, 0.026, 0.020, 0.98 }, bodyBg     = { 0.062, 0.052, 0.040, 0.95 },
+	cardBg     = { 0.088, 0.074, 0.056, 0.92 }, cardBorder = { 0.32, 0.26, 0.16, 0.85 },
+	divider    = { 0.30, 0.24, 0.14, 0.80 },
+	activeBg   = { 0.24, 0.18, 0.05, 0.96 },    activeBorder = { 0.96, 0.78, 0.24, 1.00 },
+	teal = { 0.96, 0.78, 0.24 }, gold = { 1.00, 0.82, 0.26 }, crimson = { 0.95, 0.30, 0.34 },
 }
+local function CopyRGBA(dst, src)
+	if dst and src then dst[1], dst[2], dst[3], dst[4] = src[1], src[2], src[3], src[4] end
+end
+local function SyncEditorThemeTable(th)
+	if not (th and th.editor) then return end
+	local e = th.editor
+	CopyRGBA(THEME.winBg, e.winBg); CopyRGBA(THEME.winBorder, e.winBorder)
+	CopyRGBA(THEME.sideBg, e.sideBg); CopyRGBA(THEME.bodyBg, e.bodyBg)
+	CopyRGBA(THEME.cardBg, e.cardBg); CopyRGBA(THEME.cardBorder, e.cardBorder)
+	CopyRGBA(THEME.divider, e.divider)
+	CopyRGBA(THEME.activeBg, e.activeBg); CopyRGBA(THEME.activeBorder, e.activeBorder)
+	if th.colors and th.colors.accent then CopyRGBA(THEME.teal, th.colors.accent) end
+end
 local BTN_STYLES = {
 	teal = { bg = { 0.04, 0.19, 0.18, 0.94 }, bd = { 0.00, 0.80, 0.68, 0.85 } },
 	gold = { bg = { 0.20, 0.15, 0.04, 0.92 }, bd = { 0.82, 0.64, 0.22, 0.85 } },
@@ -24,7 +38,7 @@ local MODE_META = {
 	off      = { label = "Both OFF", bg = { 0.26, 0.07, 0.09, 0.98 }, br = { 0.95, 0.30, 0.34, 1.0 }, txt = { 1.00, 0.68, 0.70 }, barCol = THEME.crimson },
 }
 
-local EditorUI = { selectedBoxIdx = 0, activePage = 1, built = false, refreshables = {}, navButtons = {}, pageWrappers = {} }
+local EditorUI = { selectedBoxIdx = 0, activePage = 1, built = false, refreshables = {}, navButtons = {}, pageWrappers = {}, themeParts = {}, sectionLabels = {}, scrollThumbs = {} }
 
 local AlignGrid = CreateFrame("Frame", "AZS_MinUI_AlignGrid", UIParent)
 AlignGrid._azsMinUI = true
@@ -178,24 +192,23 @@ local NAV_PAGES = {
 	  end },
 	{ id = 2, label = "Layout & Boxes", title = "Layout, Scale & Positions",
 	  subtitle = "Unlock to drag on screen, resize from the ↘ corner, or fine-tune below.", icon = NS.Media("config_button") },
-	{ id = 3, section = "COMBAT & PARTY", label = "Combat & Plates", title = "Enemy Health, 3D Ranges & Damage",
-	  subtitle = "Customize minimal nameplates, Elite/Boss rarities, range rings, and side damage feed.", icon = NS.Media("icon-combat") },
-	{ id = 4, label = "Party & Buffs", title = "Party (HP & DPS) + Player & Party Buffs",
-	  subtitle = "Configure party health frames, party DPS meter, and buff grids.", icon = NS.Media("grouprole-icons-dps") },
-	{ id = 5, label = "Loot & Drops", title = "Monster Loot, Chests & Gold",
-	  subtitle = "Track dropped armor/weapons, opened chests, and gold earned during the run.", icon = NS.Media("point_plate") },
-	{ id = 6, label = "Compass & Map", title = "360° Compass & World Crystals",
-	  subtitle = "Configure radar radius, off-screen mode, and filters for chests, lairs, and allies.", icon = NS.Media("group-finder-eye-green") },
-	{ id = 7, section = "SYSTEM & LAB", label = "Fonts & General", title = "Typography, Gameplay & System",
-	  subtitle = "Switch fonts live, adjust base font size, and manage sync and resets.", icon = NS.Media("point_crystal") },
-	{ id = 8, label = "|cffc499ffBeta (Tactical)|r", title = "Run Pace & 5s Tactical Engine",
-	  subtitle = "5s stand-still survival simulation, monster/stat/gear/talent analysis, and upgrade guide.", icon = NS.Media("point_gem"),
-	  badgeFn = function() return (NS.DB and NS.DB.beta and NS.DB.beta.runPace) and "|cff00ffccON|r" or "|cff778899OFF|r" end },
+	{ id = 3, section = "COMBAT & PARTY", label = "Combat & Plates", title = "Enemy Health, Elites & Damage",
+	  subtitle = "Customize minimal nameplates, Elite Spawn Timer, and side damage feed.", icon = NS.Media("icon-combat") },
+	{ id = 4, label = "HUD & Damage", title = "Center HUD, Meter & Class Extras",
+	  subtitle = "Configure the 5-tab Damage/Heal meter, Center HUD, Summons, and Darkness button.", icon = NS.Media("grouprole-icons-dps") },
+	{ id = 5, label = "Loot & Drops", title = "Monster Loot, 0.8.0 Drops, Chests & Gold",
+	  subtitle = "Track 0.8.0 Stars, Sets, Upgrades, ground sacks, opened chests, and run gold.", icon = NS.Media("point_plate") },
+	{ id = 6, label = "Compass & Map", title = "Minimap, 360° Compass & World Crystals",
+	  subtitle = "Configure the styled WoW minimap, 360° compass, and tracking filters.", icon = NS.Media("group-finder-eye-green") },
+	{ id = 7, section = "SYSTEM", label = "Themes & Fonts", title = "Color Themes, Fonts & General",
+	  subtitle = "Switch expansion color themes live (Classic, TBC, WotLK, Cataclysm), fonts & resets.", icon = NS.Media("point_crystal") },
 }
 
 EnsureEditorBuilt = function()
 	if EditorUI.built then return end
 	EditorUI.built = true
+	SyncEditorThemeTable(NS.GetTheme and NS.GetTheme())
+	ApplyCardPanel(EditorFrame, THEME.winBg, THEME.winBorder)
 	local blank = NS.OwnMedia("blank")
 
 	local topGlow = EditorFrame:CreateTexture(nil, "OVERLAY")
@@ -218,9 +231,11 @@ EnsureEditorBuilt = function()
 
 	local verBadge = CreateFrame("Frame", nil, HeaderBar)
 	verBadge:SetSize(82, 18); verBadge:SetPoint("LEFT", brandTitle, "RIGHT", 10, 0)
-	ApplyCardPanel(verBadge, { 0.04, 0.16, 0.16, 0.90 }, { 0.00, 0.72, 0.62, 0.70 })
+	ApplyCardPanel(verBadge, THEME.activeBg, THEME.activeBorder)
 	verBadge.txt = NS.CreateFontText(verBadge, -3, "CENTER"); verBadge.txt:SetPoint("CENTER", 0, 0)
-	verBadge.txt:SetText("|cff00ffccv" .. NS.VERSION .. " MOD|r")
+	local initTh = NS.GetTheme and NS.GetTheme()
+	verBadge.txt:SetText(((initTh and initTh.hex and initTh.hex.accent) or "|cff00ffcc") .. "v" .. NS.VERSION .. " MOD|r")
+	EditorUI.themeParts = { topGlow = topGlow, hdrDiv = hdrDiv, brandDot = brandDot, verBadge = verBadge }
 
 	local closeBtn = CreateFrame("Button", nil, HeaderBar)
 	closeBtn:SetSize(28, 26); closeBtn:SetPoint("RIGHT", HeaderBar, "RIGHT", -12, 0)
@@ -269,6 +284,10 @@ EnsureEditorBuilt = function()
 	local bannerDiv = RightPane:CreateTexture(nil, "ARTWORK")
 	bannerDiv:SetTexture(blank); bannerDiv:SetVertexColor(THEME.divider[1], THEME.divider[2], THEME.divider[3], 0.70); bannerDiv:SetHeight(1)
 	bannerDiv:SetPoint("TOPLEFT", PageBanner, "BOTTOMLEFT", 12, 0); bannerDiv:SetPoint("TOPRIGHT", PageBanner, "BOTTOMRIGHT", -12, 0)
+	EditorUI.themeParts.sideBg = Sidebar.bg
+	EditorUI.themeParts.sideDiv = sideDiv
+	EditorUI.themeParts.bodyBg = RightPane.bg
+	EditorUI.themeParts.bannerDiv = bannerDiv
 
 	local RightBody = CreateFrame("Frame", nil, RightPane)
 	RightBody:SetPoint("TOPLEFT", PageBanner, "BOTTOMLEFT", 0, -1); RightBody:SetPoint("BOTTOMRIGHT", RightPane, "BOTTOMRIGHT", 0, 0)
@@ -287,7 +306,8 @@ EnsureEditorBuilt = function()
 		track.bg = track:CreateTexture(nil, "BACKGROUND"); track.bg:SetAllPoints(); track.bg:SetTexture(blank); track.bg:SetVertexColor(0.10, 0.13, 0.18, 0.75)
 		local thumb = CreateFrame("Button", nil, track)
 		thumb:SetSize(6, 48); thumb:SetPoint("TOP", track, "TOP", 0, 0)
-		thumb.tex = thumb:CreateTexture(nil, "ARTWORK"); thumb.tex:SetAllPoints(); thumb.tex:SetTexture(blank); thumb.tex:SetVertexColor(0.00, 0.85, 0.72, 0.80)
+		thumb.tex = thumb:CreateTexture(nil, "ARTWORK"); thumb.tex:SetAllPoints(); thumb.tex:SetTexture(blank); thumb.tex:SetVertexColor(THEME.teal[1], THEME.teal[2], THEME.teal[3], 0.80)
+		EditorUI.scrollThumbs[#EditorUI.scrollThumbs + 1] = thumb.tex
 		local curScroll = 0
 		local function UpdateScroll()
 			local viewH, contH = scroll:GetHeight() or 388, content:GetHeight() or 388
@@ -336,11 +356,12 @@ EnsureEditorBuilt = function()
 			nb._isActive = isSel
 			if isSel then
 				EditorUI.pageWrappers[i]:Show()
-				nb:SetBackdropColor(0.08, 0.14, 0.18, 0.95); SetFlatBorder(nb, 0.00, 0.85, 0.72, 0.85)
+				nb:SetBackdropColor(THEME.activeBg[1], THEME.activeBg[2], THEME.activeBg[3], THEME.activeBg[4]); SetFlatBorder(nb, THEME.activeBorder[1], THEME.activeBorder[2], THEME.activeBorder[3], 0.85)
+				nb.accent:SetVertexColor(THEME.teal[1], THEME.teal[2], THEME.teal[3], 1)
 				nb.accent:Show(); nb.txt:SetTextColor(1, 1, 1, 1)
 			else
 				EditorUI.pageWrappers[i]:Hide()
-				nb:SetBackdropColor(0.035, 0.045, 0.072, 0.65); SetFlatBorder(nb, 0.10, 0.13, 0.19, 0.40)
+				nb:SetBackdropColor(THEME.sideBg[1], THEME.sideBg[2], THEME.sideBg[3], 0.70); SetFlatBorder(nb, THEME.cardBorder[1], THEME.cardBorder[2], THEME.cardBorder[3], 0.40)
 				nb.accent:Hide(); nb.txt:SetTextColor(0.70, 0.75, 0.83, 1)
 			end
 		end
@@ -387,7 +408,10 @@ EnsureEditorBuilt = function()
 	local function AddSectionLabel(parent, x, y, text)
 		local lbl = NS.CreateFontText(parent, -2, "LEFT")
 		lbl:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
-		lbl:SetText("|cff76e8d6" .. upper(text) .. "|r")
+		lbl._rawText = upper(text)
+		local th = NS.GetTheme and NS.GetTheme()
+		lbl:SetText(((th and th.hex and th.hex.accent) or "|cff76e8d6") .. lbl._rawText .. "|r")
+		EditorUI.sectionLabels[#EditorUI.sectionLabels + 1] = lbl
 		return lbl
 	end
 	local function AddActionBtn(parent, x, y, w, h, labelOrFn, onClickFn, styleOrFn)
@@ -423,7 +447,7 @@ EnsureEditorBuilt = function()
 			local on = getFn() and true or false
 			knob:ClearAllPoints(); stateTxt:ClearAllPoints()
 			if on then
-				track:SetBackdropColor(0.05, 0.42, 0.34, 0.96); track:SetBackdropBorderColor(0.00, 0.90, 0.74, 0.95)
+				track:SetBackdropColor(THEME.activeBg[1], THEME.activeBg[2], THEME.activeBg[3], 0.96); track:SetBackdropBorderColor(THEME.activeBorder[1], THEME.activeBorder[2], THEME.activeBorder[3], 0.95)
 				knob:SetPoint("RIGHT", track, "RIGHT", -2, 0); knob:SetVertexColor(0.95, 1, 0.98, 1)
 				stateTxt:SetPoint("LEFT", track, "LEFT", 5, 0); stateTxt:SetText("|cffffffffON|r")
 			else
@@ -792,53 +816,49 @@ EnsureEditorBuilt = function()
 	end
 
 	do
-		local wrap, P = CreateScrollablePage(430)
+		local wrap, P = CreateScrollablePage(450)
 		AddSectionLabel(P, 2, 0, "Enemy Health Nameplates")
 		AddModuleModeCard(P, 0, -18, 498, NS.MODULE_BY_KEY.Nameplates, true)
 		AddDBChoice(P, 0, -58, 498, "Minimal Bar Size",
 			{ { label = "Compact", value = 1 }, { label = "Medium", value = 2 }, { label = "Wide", value = 3 } }, "plates", "sizeMode", 2, UpdatePlates)
 		AddDBToggle(P, 0, -96, 498, "Rarity Colors (|cff3b9effElite|r · |cffb866ffGuardian|r · |cffff8c1aBoss|r)", "plates", "colorRarityNames", false, UpdatePlates)
 		AddDBToggle(P, 0, -132, 498, "Show Name on Normal Monsters", "plates", "showNormalNames", false, UpdatePlates)
-		AddSectionLabel(P, 2, -176, "3D Skill Attack Ranges")
-		AddModuleModeCard(P, 0, -194, 498, NS.MODULE_BY_KEY.RangeRings, true)
-		AddSliderRow(P, 0, -234, 498, "|cffe2e8f03D Range Ring Opacity|r", 0.15, 0.90, 0.05,
-			function() return NS.DB.ranges.alpha or 0.42 end, function(v) NS.DB.ranges.alpha = v end, function(v) return fmt("%.0f%%", v * 100) end)
-		AddDBToggle(P, 0, -290, 245, "Skill Icon on Ring Edge", "ranges", "showEdgeIcon", false)
-		AddDBToggle(P, 253, -290, 245, "Scale with 'Area' Stat", "ranges", "scaleWithArea", false)
-		AddSectionLabel(P, 2, -334, "Damage Numbers (Side Feed vs Floating)")
-		AddModuleModeCard(P, 0, -352, 498, NS.MODULE_BY_KEY.DamageFeed, true)
+		AddSectionLabel(P, 2, -176, "Damage Numbers (Side Feed vs Floating)")
+		AddModuleModeCard(P, 0, -194, 498, NS.MODULE_BY_KEY.DamageFeed, true)
+		AddSectionLabel(P, 2, -240, "Elite Spawn Timer & Lair Guardians")
+		AddModuleModeCard(P, 0, -258, 498, NS.MODULE_BY_KEY.EliteTimer, true)
+		AddSectionLabel(P, 2, -304, "Run Objectives (Affixes, Hexes, Keys & Bosses)")
+		AddModuleModeCard(P, 0, -322, 498, NS.MODULE_BY_KEY.RunObjectives, true)
+		AddSectionLabel(P, 2, -368, "Event Banner & Boss Horn")
+		AddModuleModeCard(P, 0, -386, 498, NS.MODULE_BY_KEY.EventBanner, true)
+		AddDBToggle(P, 0, -424, 498, "Play Boss Spawn Horn Audio", "banner", "playHorn", true)
 		EditorUI.pageWrappers[3] = wrap
 	end
 
 	do
-		local wrap, P = CreateScrollablePage(640)
-		AddSectionLabel(P, 2, 0, "Party Health (Ally HP & Revive)")
-		AddModuleModeCard(P, 0, -18, 498, NS.MODULE_BY_KEY.PartyFrames, true)
-		AddSectionLabel(P, 2, -64, "Party DPS Meter (Real-Time Ranking)")
-		AddModuleModeCard(P, 0, -82, 498, NS.MODULE_BY_KEY.PartyMeter, true)
-		AddDBToggle(P, 0, -122, 298, "Show Party DPS Meter even when Solo", "party", "showMeterWhenSolo", false, UpdateHUD)
-		AddActionBtn(P, 306, -122, 192, 30, "|cffffcc55Reset Party DPS|r", function() if NS.Modules.PartyMeter then NS.Modules.PartyMeter.Reset() end end, "gold")
-		AddSectionLabel(P, 2, -166, "Player Buffs & Debuffs")
-		AddModuleModeCard(P, 0, -184, 498, NS.MODULE_BY_KEY.PlayerBuffs, true)
-		AddDBChoice(P, 0, -224, 498, "Icon Size",
-			{ { label = "Compact", value = 1 }, { label = "Medium", value = 2 }, { label = "Large", value = 3 } }, "buffs", "sizeMode", 2, UpdateHUD)
-		AddDBToggle(P, 0, -262, 498, "Show Debuffs & Hexes (Red Border)", "buffs", "showDebuffs", true, UpdateHUD)
-		AddDBToggle(P, 0, -298, 498, "Show Item Buffs (Rings, Trinkets, Amulets)", "buffs", "showItemBuffs", true, UpdateHUD)
-		AddDBToggle(P, 0, -334, 498, "Show Pre-Match Talent & Race Buffs", "buffs", "showTalentRaceBuffs", true, UpdateHUD)
-		AddSectionLabel(P, 2, -378, "Party Buffs")
-		AddModuleModeCard(P, 0, -396, 498, NS.MODULE_BY_KEY.PartyBuffs, true)
-		AddDBChoice(P, 0, -436, 498, "Display Style",
-			{ { label = "Grouped (3/4)", value = 1 }, { label = "Per Ally", value = 2 } }, "buffs", "partyBuffMode", 1, UpdateHUD)
-		AddDBToggle(P, 0, -474, 498, "Show Party Buffs even when Solo", "buffs", "showPartyBuffsWhenSolo", false, UpdateHUD)
-		AddSectionLabel(P, 2, -518, "Buff Cooldowns (Next Activation Window)")
-		AddModuleModeCard(P, 0, -536, 498, NS.MODULE_BY_KEY.CooldownBuffs, true)
-		AddDBToggle(P, 0, -576, 498, "Show Ready Buffs (Not Currently on Cooldown)", "buffs", "showReadyCooldowns", true, UpdateHUD)
+		local wrap, P = CreateScrollablePage(430)
+		AddSectionLabel(P, 2, 0, "Damage & Heal Meter (5 Tabs)")
+		AddModuleModeCard(P, 0, -18, 498, NS.MODULE_BY_KEY.MeterPanel, true)
+		AddChoiceRow(P, 0, -58, 498, "Active Tab",
+			{ { label = "DPS", value = 1 }, { label = "Total", value = 2 }, { label = "Party", value = 3 }, { label = "Boss", value = 4 }, { label = "Heal", value = 5 } },
+			function() return (NS.DB and NS.DB.meterTab) or 1 end,
+			function(v) NS.DB.meterTab = v; UpdateHUD() end)
+		AddActionBtn(P, 0, -96, 498, 30, "|cffffcc55Sync / Reset Meter|r",
+			function() if NS.Modules.MeterPanel and NS.Modules.MeterPanel.Reset then NS.Modules.MeterPanel.Reset() end; UpdateHUD() end, "gold")
+		AddSectionLabel(P, 2, -140, "Center HUD & Class Modules")
+		AddModuleModeCard(P, 0, -158, 498, NS.MODULE_BY_KEY.PlayerHUD, true)
+		AddModuleModeCard(P, 0, -198, 498, NS.MODULE_BY_KEY.SummonTracker, true)
+		AddModuleModeCard(P, 0, -238, 498, NS.MODULE_BY_KEY.ClassExtra, true)
+		AddModuleModeCard(P, 0, -278, 498, NS.MODULE_BY_KEY.HolidayCurrency, true)
+		AddInfoCard(P, -322, 86, { 0.045, 0.060, 0.092, 0.90 }, { 0.16, 0.20, 0.30, 0.70 },
+			"|cff00ffccAuto-Hiding Modular HUD:|r\n"
+			.. "• |cffffffffPets & Totems|r, |cffffffffClass Extra (Darkness)|r, |cffffffffAffixes & Bosses|r, and |cffffffffHoliday Currency|r auto-hide completely when inactive to keep 90% of your screen clean.")
 		EditorUI.pageWrappers[4] = wrap
 	end
 
 	do
-		local wrap, P = CreateScrollablePage(380)
-		AddSectionLabel(P, 2, 0, "Run Loot & Drops Panel")
+		local wrap, P = CreateScrollablePage(430)
+		AddSectionLabel(P, 2, 0, "Run Loot & Drops Panel (v0.8.0)")
 		AddModuleModeCard(P, 0, -18, 498, NS.MODULE_BY_KEY.LootPanel, true)
 		AddDBChoice(P, 0, -58, 498, "Minimum Drop Quality",
 			{ { label = "All", value = 0 }, { label = "Green+", value = 2 }, { label = "Blue+", value = 3 }, { label = "Epic+", value = 4 } },
@@ -846,50 +866,108 @@ EnsureEditorBuilt = function()
 		AddDBChoice(P, 0, -96, 498, "Drop Filter",
 			{ { label = "Armor", value = "armor" }, { label = "Armor+Wpn", value = "gear" }, { label = "Gear+Jewel", value = "equip" }, { label = "All", value = "all" } },
 			"loot", "filterMode", "armor", UpdateHUD)
-		AddDBToggle(P, 0, -134, 498, "Auto-hide panel when there is no loot", "loot", "hideWhenEmpty", false, UpdateHUD)
-		AddDBToggle(P, 0, -172, 498, "Also keep native Game Loot HUD (AZS) visible", "loot", "keepNativeLoot", false,
+		AddDBToggle(P, 0, -134, 498, "Show Upgrades Only (0.8.0 ▲UP / Ground Sacks)", "loot", "upgradesOnly", false, UpdateHUD)
+		AddDBToggle(P, 0, -170, 498, "Auto-hide panel when there is no loot", "loot", "hideWhenEmpty", false, UpdateHUD)
+		AddDBToggle(P, 0, -206, 498, "Also keep native Game Loot HUD (AZS) visible", "loot", "keepNativeLoot", false,
 			function() if NS.SuppressNativeAndBlizzardUI then NS.SuppressNativeAndBlizzardUI() end; UpdateHUD() end)
-		AddActionBtn(P, 0, -216, 498, 32, "|cffffcc55Reset Session Drops, Chests & Gold History|r",
+		AddActionBtn(P, 0, -250, 498, 32, "|cffffcc55Reset Session Drops, Chests & Gold History|r",
 			function() if NS.Modules.LootPanel then NS.Modules.LootPanel.Reset() end; UpdateHUD() end, "gold")
-		AddInfoCard(P, -260, 66, { 0.045, 0.060, 0.092, 0.90 }, { 0.16, 0.20, 0.30, 0.70 },
-			"|cff00ffccUsage Tip:|r Hover over any armor or item listed in the panel to inspect its full tooltip stats. Use |cffffea89Shift+Click|r to link the item in chat. History resets automatically when starting a new run.")
+		AddInfoCard(P, -294, 78, { 0.045, 0.060, 0.092, 0.90 }, { 0.16, 0.20, 0.30, 0.70 },
+			"|cff00ffcc0.8.0 Loot Mechanics:|r Displays Star tiers (|cffffea89★|r), Set items (|cff33ff66SET|r), Upgrades (|cff55ff88▲UP|r), Greater Affixes, and nearby |cff76e8d6[GROUND]|r loot sacks. Click any |cff76e8d6[GROUND]|r row to pick it up, hover for full affix stats, or |cffffea89Shift+Click|r to link in chat.")
 		EditorUI.pageWrappers[5] = wrap
 	end
 
 	do
-		local wrap, P = CreateScrollablePage(390)
-		AddSectionLabel(P, 2, 0, "360° Compass (Camera-Aligned)")
-		AddModuleModeCard(P, 0, -18, 498, NS.MODULE_BY_KEY.Compass, true)
-		AddSliderRow(P, 0, -58, 498, "|cffe2e8f0360° Compass Radius (Drag to resize)|r", 80, 260, 4,
+		local wrap, P = CreateScrollablePage(460)
+		AddSectionLabel(P, 2, 0, "Minimap (WoW Terrain + Minimal UI Border)")
+		AddModuleModeCard(P, 0, -18, 498, NS.MODULE_BY_KEY.Minimap, true)
+		AddDBToggle(P, 0, -58, 245, "Show Zone Name Header", "minimap", "showZoneName", true, UpdateHUD)
+		AddToggleRow(P, 253, -58, 245, "Rotate Minimap with Player",
+			function() return type(_G.GetCVar) == "function" and _G.GetCVar("rotateMinimap") == "1" end,
+			function(v) if type(_G.SetCVar) == "function" then pcall(_G.SetCVar, "rotateMinimap", v and "1" or "0") end end)
+		AddSectionLabel(P, 2, -104, "360° Compass (Camera-Aligned)")
+		AddModuleModeCard(P, 0, -122, 498, NS.MODULE_BY_KEY.Compass, true)
+		AddSliderRow(P, 0, -162, 498, "|cffe2e8f0360° Compass Radius (Drag to resize)|r", 80, 260, 4,
 			function() return NS.DB.compass.radius or 152 end,
 			function(v) NS.DB.compass.radius = v; if NS.MovableFrames.Compass then NS.RestoreBoxLayout("Compass", NS.MovableFrames.Compass) end end,
 			function(v) return fmt("%dpx", v) end)
-		AddDBChoice(P, 0, -114, 498, "When to Show Arrows",
+		AddDBChoice(P, 0, -218, 498, "When to Show Arrows",
 			{ { label = "Off-Screen Only", value = true }, { label = "All on Map", value = false } }, "compass", "onlyOffscreen", true)
-		AddSectionLabel(P, 2, -160, "Tracking Filters")
-		AddDBToggle(P, 0, -178, 245, "Chests (Normal & Boss)", "compass", "showChests", false)
-		AddDBToggle(P, 253, -178, 245, "Lairs", "compass", "showLairs", false)
-		AddDBToggle(P, 0, -214, 245, "Portals, Totems & Pings", "compass", "showPortalsTotems", false)
-		AddDBToggle(P, 253, -214, 245, "Downed Allies", "compass", "showDowned", false)
-		AddDBToggle(P, 0, -250, 245, "Active Bosses", "compass", "showBosses", false)
-		AddToggleRow(P, 253, -250, 245, "3D World Crystals",
+		AddSectionLabel(P, 2, -264, "Compass Tracking Filters")
+		AddDBToggle(P, 0, -282, 245, "Chests (Normal & Boss)", "compass", "showChests", false)
+		AddDBToggle(P, 253, -282, 245, "Lairs", "compass", "showLairs", false)
+		AddDBToggle(P, 0, -318, 245, "Portals, Totems & Pings", "compass", "showPortalsTotems", false)
+		AddDBToggle(P, 253, -318, 245, "Downed Allies", "compass", "showDowned", false)
+		AddDBToggle(P, 0, -354, 245, "Active Bosses", "compass", "showBosses", false)
+		AddToggleRow(P, 253, -354, 245, "3D World Crystals",
 			function() return NS.GetModuleMode("WorldPins") == "minimal" end,
 			function(v) NS.SetModuleMode("WorldPins", v and "minimal" or "off") end)
-		AddSectionLabel(P, 2, -294, "Native WoW Minimap")
-		AddModuleModeCard(P, 0, -312, 498, NS.MODULE_BY_KEY.Minimap, true)
 		EditorUI.pageWrappers[6] = wrap
 	end
 
 	do
-		local wrap, P = CreateScrollablePage(390)
-		AddSectionLabel(P, 2, 0, "Font Style (Click to switch live)")
+		local wrap, P = CreateScrollablePage(530)
+		AddSectionLabel(P, 2, 0, "Expansion Color Theme (Click to switch entire UI live)")
+		local themeCards = {}
+		local order = NS.THEME_ORDER or { "classic", "tbc", "wotlk", "cataclysm" }
+		for i = 1, #order do
+			local tk = order[i]
+			local td = NS.THEMES and NS.THEMES[tk]
+			if td then
+				local tc = CreateFrame("Button", nil, P)
+				tc:SetSize(245, 50)
+				tc:SetPoint("TOPLEFT", P, "TOPLEFT", ((i - 1) % 2) * 253, -18 - floor((i - 1) / 2) * 56)
+				ApplyCardPanel(tc); AttachHoverTint(tc)
+				tc._themeKey = tk
+				local sw = td.editor and td.editor.swatches
+				for s = 1, 3 do
+					local bar = tc:CreateTexture(nil, "ARTWORK")
+					bar:SetSize(18, 8)
+					bar:SetPoint("TOPRIGHT", tc, "TOPRIGHT", -10 - (3 - s) * 21, -10)
+					bar:SetTexture(blank)
+					local sc = sw and sw[s] or { 0.8, 0.8, 0.8 }
+					bar:SetVertexColor(sc[1], sc[2], sc[3], 1)
+				end
+				tc.title = NS.CreateFontText(tc, 0, "LEFT")
+				tc.title:SetPoint("TOPLEFT", tc, "TOPLEFT", 11, -8)
+				tc.title:SetText(((td.hex and td.hex.accent) or "|cffffffff") .. td.name .. "|r")
+				tc.sub = NS.CreateFontText(tc, -2, "LEFT")
+				tc.sub:SetPoint("BOTTOMLEFT", tc, "BOTTOMLEFT", 11, 9)
+				tc.sub:SetPoint("RIGHT", tc, "RIGHT", -10, 0)
+				tc.sub:SetText("|cff9aa6b8" .. (td.sub or "") .. "|r")
+				tc:SetScript("OnClick", function()
+					NS.PlayUISound("UChatScrollButton")
+					if NS.ApplyTheme then NS.ApplyTheme(tk) end
+				end)
+				themeCards[#themeCards + 1] = tc
+			end
+		end
+		EditorUI.refreshables[#EditorUI.refreshables + 1] = function()
+			local cur = (NS.DB and NS.DB.theme) or "classic"
+			for i = 1, #themeCards do
+				local tc = themeCards[i]
+				local td = NS.THEMES and NS.THEMES[tc._themeKey]
+				local isSel = (tc._themeKey == cur)
+				tc._isActive = isSel
+				if isSel and td and td.editor then
+					local abg, abd = td.editor.activeBg, td.editor.activeBorder
+					tc:SetBackdropColor(abg[1], abg[2], abg[3], abg[4])
+					SetFlatBorder(tc, abd[1], abd[2], abd[3], 1.0)
+				else
+					tc:SetBackdropColor(THEME.cardBg[1], THEME.cardBg[2], THEME.cardBg[3], THEME.cardBg[4])
+					SetFlatBorder(tc, THEME.cardBorder[1], THEME.cardBorder[2], THEME.cardBorder[3], THEME.cardBorder[4])
+				end
+			end
+		end
+
+		AddSectionLabel(P, 2, -138, "Font Style (Click to switch live)")
 		local fontCards = {}
 		for i = 1, #FONTS do
 			local fc = CreateFrame("Button", nil, P)
-			fc:SetSize(245, 34); fc:SetPoint("TOPLEFT", P, "TOPLEFT", ((i - 1) % 2) * 253, -18 - floor((i - 1) / 2) * 40)
+			fc:SetSize(245, 34); fc:SetPoint("TOPLEFT", P, "TOPLEFT", ((i - 1) % 2) * 253, -156 - floor((i - 1) / 2) * 40)
 			ApplyCardPanel(fc); AttachHoverTint(fc)
 			local preview = fc:CreateFontString(nil, "OVERLAY")
-			preview:SetFont(FONTS[i].path, 12, "OUTLINE"); preview:SetPoint("CENTER", fc, "CENTER", 0, 0); preview:SetText(FONTS[i].name)
+			preview:SetFont(FONTS[i].path, 11, "OUTLINE"); preview:SetPoint("CENTER", fc, "CENTER", 0, 0); preview:SetText(FONTS[i].name)
 			fc.preview = preview
 			local idx = i
 			fc:SetScript("OnClick", function() NS.PlayUISound("UChatScrollButton"); NS.DB.fontIndex = idx; NS.RefreshAllFonts(); RefreshEditorControls() end)
@@ -900,50 +978,51 @@ EnsureEditorBuilt = function()
 			for i = 1, #fontCards do
 				local fc, isSel = fontCards[i], (i == cur)
 				fc._isActive = isSel
-				if isSel then fc:SetBackdropColor(0.06, 0.24, 0.22, 0.96); SetFlatBorder(fc, 0, 0.92, 0.78, 1); fc.preview:SetTextColor(0.95, 1, 0.96, 1)
+				if isSel then fc:SetBackdropColor(THEME.activeBg[1], THEME.activeBg[2], THEME.activeBg[3], THEME.activeBg[4]); SetFlatBorder(fc, THEME.activeBorder[1], THEME.activeBorder[2], THEME.activeBorder[3], 1); fc.preview:SetTextColor(0.95, 1, 0.96, 1)
 				else fc:SetBackdropColor(THEME.cardBg[1], THEME.cardBg[2], THEME.cardBg[3], THEME.cardBg[4]); SetFlatBorder(fc, THEME.cardBorder[1], THEME.cardBorder[2], THEME.cardBorder[3], THEME.cardBorder[4]); fc.preview:SetTextColor(0.76, 0.82, 0.90, 1) end
 			end
 		end
-		AddSliderRow(P, 0, -104, 498, "|cffe2e8f0Base Font Size (Live)|r", 9, 16, 1,
+		AddSliderRow(P, 0, -242, 498, "|cffe2e8f0Base Font Size (9 / 11 / 13 Tier Scale)|r", 9, 16, 1,
 			function() return NS.DB.fontSize or 11 end, function(v) NS.DB.fontSize = v; NS.RefreshAllFonts() end, function(v) return fmt("%dpx", v) end)
-		AddSectionLabel(P, 2, -168, "Gameplay & Chat Preferences")
-		AddToggleRow(P, 0, -186, 498, "Store Level-Ups to open with [T]",
+		AddSectionLabel(P, 2, -306, "Gameplay & Chat Preferences")
+		AddToggleRow(P, 0, -324, 498, "Store Level-Ups to open with [T]",
 			function() return type(_G.AZS_IsStoringLevels) == "function" and _G.AZS_IsStoringLevels() or false end,
 			function(v) if type(_G.AZS_SetStoringLevels) == "function" then _G.AZS_SetStoringLevels(v) end end)
-		AddModuleModeCard(P, 0, -222, 498, NS.MODULE_BY_KEY.Chat, true)
-		AddSectionLabel(P, 2, -270, "Sync & Maintenance")
-		AddActionBtn(P, 0, -288, 498, 30, "|cff00ffccForce Server Sync (AZSCMD sync)|r",
+		AddModuleModeCard(P, 0, -360, 498, NS.MODULE_BY_KEY.Chat, true)
+		AddSectionLabel(P, 2, -408, "Sync & Maintenance")
+		AddActionBtn(P, 0, -426, 498, 30, "|cff00ffccForce Server Sync (AZSCMD sync)|r",
 			function() SendAddonMessage("AZSCMD", "sync", "PARTY") end, "cyan")
-		AddActionBtn(P, 0, -326, 498, 30, "|cffff6b6bRestore All Default Settings|r", ResetEntireUI, "red")
+		AddActionBtn(P, 0, -464, 498, 30, "|cffff6b6bRestore All Default Settings|r", ResetEntireUI, "red")
 		EditorUI.pageWrappers[7] = wrap
 	end
+end
 
-	do
-		local wrap, P = CreateScrollablePage(460)
-		local function RefreshBeta() NS.RefreshAllLayouts(); UpdateHUD(); RefreshEditorControls() end
-		AddSectionLabel(P, 2, 0, "Run Pace, Live Coach & Tactical Engine (ModulesBeta/RunPace.lua)")
-		AddDBToggle(P, 0,   -20, 245, "Enable Pace & Tactical Panel",     "beta", "runPace", false, RefreshBeta)
-		AddDBToggle(P, 253, -20, 245, "Enable 5s Tactical & Build Calc",  "beta", "tacticalAdvisor", true, RefreshBeta)
-		AddDBToggle(P, 0,   -58, 245, "Show Post-Run Card on exit",       "beta", "showPostRunCard", true)
-		AddDBToggle(P, 253, -58, 245, "Real-Time Coach (alerts)",         "beta", "coach", true, RefreshBeta)
-		AddSliderRow(P, 0, -98, 498, "|cffc499ffStand-Still Simulation Window (Seconds)|r", 3, 10, 1,
-			function() return (NS.DB.beta and NS.DB.beta.simSeconds) or 5 end,
-			function(v) NS.DB.beta.simSeconds = v; RefreshBeta() end,
-			function(v) return fmt("%ds standing", v) end)
-		AddActionBtn(P, 0, -162, 245, 32, "|cff00ffccPreview Post-Run Card|r",
-			function() if NS.BetaModules and NS.BetaModules.RunPace then NS.BetaModules.RunPace.ShowSummary(true) end end, "teal")
-		AddActionBtn(P, 253, -162, 245, 32, "|cffffcc55Reset Saved Records (PB)|r",
-			function() if NS.BetaModules and NS.BetaModules.RunPace then NS.BetaModules.RunPace.ResetPBs(); RefreshBeta() end end, "gold")
-		AddDBToggle(P, 0, -210, 498, "Play sound on critical Coach alerts", "beta", "coachSound", true)
-		AddInfoCard(P, -254, 166, { 0.055, 0.045, 0.095, 0.92 }, { 0.42, 0.30, 0.72, 0.75 },
-			"|cff00ffccIntegrated Tactical Engine:|r\n"
-			.. "• |cffffffffStand-Still Simulation (5s):|r Combines HP + Shields + Regen + Leech + Heals against real incoming damage (Combat Log) and live monster, elite, guardian, and boss pressure.\n"
-			.. "• |cffffffffStat Priority:|r Computes true marginal gain across |cffff7777Damage|r, |cff66ccffDefense|r, |cff55ff88Health/Regen|r, and |cffffd100Cooldown (CDR)|r without recommending capped stats.\n"
-			.. "• |cffffffffRecommended Skill:|r Analyzes your |cffc499ffTalent tree|r, equipped gear, and active skill DPS.\n"
-			.. "• |cffffffffLive Coach:|r Up to 3 prioritized alerts: death danger, ground AoE, boss vs. survivability, pace/DPS drop, nearby chests and lairs, level-up, and downed ally.\n"
-			.. "• |cff94a3b8Tip:|r Hover over the |cffffffff[B] Tact.|r panel to inspect the full calculation breakdown and Coach history.")
-		EditorUI.pageWrappers[8] = wrap
+NS.EditorHooks.ApplyTheme = function(th)
+	SyncEditorThemeTable(th)
+	ApplyCardPanel(EditorFrame, THEME.winBg, THEME.winBorder)
+	if not EditorUI.built then return end
+	local p = EditorUI.themeParts
+	if p.topGlow then p.topGlow:SetVertexColor(THEME.teal[1], THEME.teal[2], THEME.teal[3], 0.85) end
+	if p.hdrDiv then p.hdrDiv:SetVertexColor(THEME.divider[1], THEME.divider[2], THEME.divider[3], THEME.divider[4]) end
+	if p.sideDiv then p.sideDiv:SetVertexColor(THEME.divider[1], THEME.divider[2], THEME.divider[3], THEME.divider[4]) end
+	if p.bannerDiv then p.bannerDiv:SetVertexColor(THEME.divider[1], THEME.divider[2], THEME.divider[3], 0.70) end
+	if p.sideBg then p.sideBg:SetVertexColor(THEME.sideBg[1], THEME.sideBg[2], THEME.sideBg[3], THEME.sideBg[4]) end
+	if p.bodyBg then p.bodyBg:SetVertexColor(THEME.bodyBg[1], THEME.bodyBg[2], THEME.bodyBg[3], THEME.bodyBg[4]) end
+	if p.brandDot then p.brandDot:SetVertexColor(THEME.teal[1], THEME.teal[2], THEME.teal[3], 1.0) end
+	if p.verBadge then
+		p.verBadge:SetBackdropColor(THEME.activeBg[1], THEME.activeBg[2], THEME.activeBg[3], THEME.activeBg[4])
+		p.verBadge:SetBackdropBorderColor(THEME.activeBorder[1], THEME.activeBorder[2], THEME.activeBorder[3], 0.85)
+		p.verBadge.txt:SetText(((th and th.hex and th.hex.accent) or "|cff00ffcc") .. "v" .. NS.VERSION .. " MOD|r")
 	end
+	local accHex = (th and th.hex and th.hex.accent) or "|cff76e8d6"
+	for i = 1, #EditorUI.sectionLabels do
+		local lbl = EditorUI.sectionLabels[i]
+		if lbl and lbl._rawText then lbl:SetText(accHex .. lbl._rawText .. "|r") end
+	end
+	for i = 1, #EditorUI.scrollThumbs do
+		EditorUI.scrollThumbs[i]:SetVertexColor(THEME.teal[1], THEME.teal[2], THEME.teal[3], 0.80)
+	end
+	SelectEditorPage(EditorUI.activePage)
 end
 
 NS.EditorHooks.SelectBoxByKey = function(key, openEditor)

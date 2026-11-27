@@ -21,7 +21,7 @@ TopBar.eyeIcon:SetPoint("LEFT", TopBar, "LEFT", 12, 0)
 TopBar.eyeIcon:SetTexture(TEX_EYE_GREEN)
 TopBar.leftText = NS.CreateFontText(TopBar, 0, "LEFT")
 TopBar.leftText:SetPoint("LEFT", TopBar.eyeIcon, "RIGHT", 6, 0)
-TopBar.centerText = NS.CreateFontText(TopBar, 1, "CENTER")
+TopBar.centerText = NS.CreateFontText(TopBar, 2, "CENTER")
 TopBar.centerText:SetPoint("CENTER", TopBar, "CENTER", -45, 0)
 TopBar.centerIcon = TopBar:CreateTexture(nil, "ARTWORK")
 TopBar.centerIcon:SetSize(18, 18)
@@ -51,36 +51,44 @@ local function SetTex(texObj, path, isEye)
 end
 
 local Mod = { frame = TopBar, configBtn = ConfigBtn }
+function Mod.ApplyTheme()
+	ConfigBtn.tex:SetVertexColor(COLORS.ui[1], COLORS.ui[2], COLORS.ui[3], 1)
+end
 function Mod.Update(ctx)
 	if NS.IsBoxHidden("TopBar") and not ctx.isEditing then return end
+	local th = NS.ACTIVE_THEME
+	local titleHex = (th and th.hex and th.hex.title) or "|cffffea89"
+	local accHex   = (th and th.hex and th.hex.accent) or "|cffffd100"
+	local bossHex  = (th and th.hex and th.hex.boss) or "|cffff8c1a"
+	local rareHex  = (th and th.hex and th.hex.rare) or "|cffcc66ff"
 	local zone, run = ctx.zone, ctx.run
 	if not ctx.inHub and zone and run then
 		local zname = zone.zname or zone.zone or "Azeroth"
 		local diff = zone.diff or ("T" .. tostring(zone.dt or 0))
 		local heroic = (tonumber(zone.heroic) or 0) > 0 and (" |cffff5555H" .. zone.heroic .. "|r") or ""
-		SetText(TopBar.leftText, fmt("|cffffea89%s|r |cffbbbbbb[%s%s]|r  |cffffffff%s|r", zname, diff, heroic, FormatTime(ctx.runClock)))
+		SetText(TopBar.leftText, fmt("%s%s|r |cffbbbbbb[%s%s]|r  |cffffffff%s|r", titleHex, zname, diff, heroic, FormatTime(ctx.runClock)))
 
 		local nbs, nbc, nb = run.nbs, tonumber(run.nbc) or 0, tonumber(run.nb) or -1
 		local bossStatus, cTex
 		if nbs == "up" then
-			cTex, bossStatus = TEX_BADGE_BOSS, fmt("|cffff8c1aBOSS #%d ACTIVE|r", nbc)
+			cTex, bossStatus = TEX_BADGE_BOSS, fmt("%sBOSS #%d ACTIVE|r", bossHex, nbc)
 		elseif nbs == "known" then
 			cTex = TEX_CLS_BOSS
 			local bname = (run.nbn and run.nbn ~= "") and run.nbn or ("Boss #" .. nbc)
 			if run.nbm == "rift" and run.rift ~= nil then
-				bossStatus = fmt("|cffcc66ffRift %d%%|r · |cffffea89%s|r%s", tonumber(run.rift) or 0, bname, nb >= 0 and (" (" .. FormatTime(nb) .. ")") or "")
+				bossStatus = fmt("%sRift %d%%|r · %s%s|r%s", rareHex, tonumber(run.rift) or 0, titleHex, bname, nb >= 0 and (" (" .. FormatTime(nb) .. ")") or "")
 			elseif nb >= 0 then
-				bossStatus = fmt("|cffffea89%s|r in |cffffffff%s|r", bname, FormatTime(nb))
+				bossStatus = fmt("%s%s|r in |cffffffff%s|r", titleHex, bname, FormatTime(nb))
 			else
-				bossStatus = "|cffffea89" .. bname .. "|r"
+				bossStatus = titleHex .. bname .. "|r"
 			end
 		elseif nbs == "unknown" then
 			cTex = TEX_SKULL
-			bossStatus = nb >= 0 and fmt("|cffff8800Endless #%d|r in |cffffffff%s|r", nbc, FormatTime(nb)) or fmt("|cffff8800Endless #%d|r", nbc)
+			bossStatus = nb >= 0 and fmt("%sEndless #%d|r in |cffffffff%s|r", bossHex, nbc, FormatTime(nb)) or fmt("%sEndless #%d|r", bossHex, nbc)
 		else
 			cTex = TEX_CLS_GEN
 			local left = tonumber(run.left) or -1
-			bossStatus = left >= 0 and ("Final: |cffffffff" .. FormatTime(left) .. "|r") or ("|cff88ff88" .. tostring(run.ph or "In Run") .. "|r")
+			bossStatus = left >= 0 and ("Final: |cffffffff" .. FormatTime(left) .. "|r") or (accHex .. tostring(run.ph or "In Run") .. "|r")
 		end
 		SetTex(TopBar.centerIcon, cTex, false)
 		SetText(TopBar.centerText, bossStatus)
@@ -90,14 +98,15 @@ function Mod.Update(ctx)
 		if swarmPct >= 80 then swarmColor, eyeTex = "|cffff3333", TEX_EYE_RED
 		elseif swarmPct >= 50 then swarmColor, eyeTex = "|cffffcc00", TEX_EYE_ORANGE end
 		SetTex(TopBar.eyeIcon, eyeTex, true)
-		SetText(TopBar.rightText, fmt("Horde: %s%d%%|r  Kills: |cffffffff%s|r |cffffbb44(E:%d)|r  Gold: |cffffd700%s|r |cffaaaaaa(Cache:%s)|r",
-			swarmColor, swarmPct, FormatNumber(run.kills), tonumber(run.ek) or 0, FormatNumber(run.gold), FormatNumber(run.cache)))
+		SetText(TopBar.rightText, fmt("Horde: %s%d%%|r  Kills: |cffffffff%s|r %s(E:%d)|r  Gold: |cffffd700%s|r |cffaaaaaa(Cache:%s)|r",
+			swarmColor, swarmPct, FormatNumber(run.kills), accHex, tonumber(run.ek) or 0, FormatNumber(run.gold), FormatNumber(run.cache)))
 	else
 		SetTex(TopBar.eyeIcon, TEX_EYE_PURPLE, true)
 		SetTex(TopBar.centerIcon, TEX_BADGE_BOSS, false)
-		SetText(TopBar.leftText, "|cffffea89AZS Minimal UI|r |cffaaaaaa(Modular v" .. NS.VERSION .. ")|r")
-		SetText(TopBar.centerText, "|cffdddddd90% Free Screen · 360° Compass · 3D Ranges|r")
-		SetText(TopBar.rightText, "|cffffd100/minui|r |cffaaaaaato edit|r")
+		local thName = (th and th.name) or "Classic"
+		SetText(TopBar.leftText, fmt("%sAZS Minimal UI|r |cffaaaaaa(%s · v%s)|r", titleHex, thName, NS.VERSION))
+		SetText(TopBar.centerText, "|cffdddddd90% Free Screen · 360° Compass · ARPG HUD|r")
+		SetText(TopBar.rightText, accHex .. "/minui|r |cffaaaaaato edit|r")
 	end
 end
 

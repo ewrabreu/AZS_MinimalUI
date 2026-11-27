@@ -34,7 +34,7 @@ for i = 1, MAX_COMPASS_MARKS do
 	m.icon:SetSize(14, 14)
 	m.icon:SetPoint("CENTER", m, "CENTER", 0, 0)
 	m.icon:SetTexture(TEX_CRYSTAL)
-	m.dist = NS.CreateFontText(m, -3, "CENTER")
+	m.dist = NS.CreateFontText(m, -2, "CENTER")
 	m.dist:SetPoint("TOP", m, "BOTTOM", 0, -1)
 	m:Hide()
 	CompassPool[i] = m
@@ -194,6 +194,12 @@ function Mod.Update3D(projectFn, px, py, pz, pf, vx_x, vx_y, vy_x, vy_y)
 	end
 	for i = cCount + 1, lastVisibleCount do CompassPool[i]:Hide() end
 	lastVisibleCount = cCount
+end
+
+function Mod.ApplyTheme()
+	for i = 1, MAX_COMPASS_MARKS do
+		CompassPool[i].bg:SetVertexColor(COLORS.crystalCase[1], COLORS.crystalCase[2], COLORS.crystalCase[3], 0.95)
+	end
 end
 
 NS.Modules.Compass = Mod

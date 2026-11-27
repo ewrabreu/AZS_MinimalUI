@@ -44,12 +44,12 @@ for i = 1, 3 do
 	badge:SetSize(24, 24)
 	badge:SetPoint("RIGHT", bar, "LEFT", -3, 0)
 	badge:SetTexture(TEX_BADGE_BOSS)
-	local hpText = NS.CreateFontText(overlay, -1, "RIGHT")
+	local hpText = NS.CreateFontText(overlay, 2, "RIGHT")
 	hpText:SetPoint("RIGHT", bar, "RIGHT", -8, 1)
-	local nameText = NS.CreateFontText(overlay, -1, "LEFT")
+	local nameText = NS.CreateFontText(overlay, 2, "LEFT")
 	nameText:SetPoint("LEFT", bar, "LEFT", 8, 1)
 	nameText:SetPoint("RIGHT", hpText, "LEFT", -6, 0)
-	NS.SetNoWrap(nameText, 14)
+	NS.SetNoWrap(nameText, 16)
 	local debuffs = {}
 	for d = 1, 5 do
 		local df = CreateFrame("Frame", nil, overlay)
@@ -58,8 +58,6 @@ for i = 1, 3 do
 		df.tex = df:CreateTexture(nil, "ARTWORK")
 		df.tex:SetAllPoints()
 		df.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-		if df.tex.SetMask then df.tex:SetMask(NS.Media("actionbutton-mask-square")) end
-		df.border = NS.AttachAuraBorder(df, 8, 3)
 		df:Hide()
 		debuffs[d] = df
 	end
@@ -175,6 +173,15 @@ function Mod.Update(ctx)
 		else
 			row:Hide()
 		end
+	end
+end
+
+function Mod.ApplyTheme()
+	for i = 1, 3 do
+		local row = BossRows[i]
+		row._state = nil
+		row.case:SetVertexColor(COLORS.ui[1], COLORS.ui[2], COLORS.ui[3], 1)
+		row.bar:SetStatusBarColor(COLORS.bossOrange[1], COLORS.bossOrange[2], COLORS.bossOrange[3], 1)
 	end
 end
 

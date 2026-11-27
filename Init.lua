@@ -4,8 +4,9 @@ local type, pcall, tonumber, tostring = type, pcall, tonumber, tostring
 local GetTime, SendAddonMessage, lower = GetTime, SendAddonMessage, string.lower
 
 local UPDATE_ORDER = {
-	"TopBar", "BossBar", "PlayerHUD", "StoredBadge", "StatsPanel", "MeterPanel",
-	"PartyFrames", "PartyMeter", "PlayerBuffs", "PartyBuffs", "CooldownBuffs", "LootPanel", "Nameplates",
+	"TopBar", "EventBanner", "BossBar", "PlayerHUD", "ClassExtra", "SummonTracker",
+	"StoredBadge", "StatsPanel", "MeterPanel", "LootPanel", "RunObjectives",
+	"HolidayCurrency", "Minimap", "EliteTimer", "Nameplates",
 }
 local SharedCtx, tickId = {}, 0
 
@@ -29,8 +30,6 @@ function NS.UpdateMinimalHUD()
 		local mod = M[UPDATE_ORDER[i]]
 		if mod then mod.Update(SharedCtx) end
 	end
-	local B = NS.BetaModules
-	if B and B.RunPace then B.RunPace.Update(SharedCtx) end
 end
 
 SLASH_AZSMINIMALUI1 = "/minui"
@@ -46,6 +45,14 @@ SlashCmdList["AZSMINIMALUI"] = function(msg)
 		SendAddonMessage("AZSCMD", "sync", "PARTY")
 	elseif msg == "suppress" or msg == "clean" then
 		if NS.SuppressNativeAndBlizzardUI then NS.SuppressNativeAndBlizzardUI() end
+	elseif msg == "classic" or msg == "tbc" or msg == "wotlk" or msg == "cataclysm" then
+		if NS.ApplyTheme then NS.ApplyTheme(msg) end
+	elseif string.sub(msg, 1, 6) == "theme " then
+		local t = string.sub(msg, 7)
+		if t == "bc" or t == "burning crusade" then t = "tbc"
+		elseif t == "lk" or t == "lich king" then t = "wotlk"
+		elseif t == "cata" then t = "cataclysm" end
+		if NS.THEMES and NS.THEMES[t] and NS.ApplyTheme then NS.ApplyTheme(t) end
 	else
 		if NS.ToggleEditor then NS.ToggleEditor() end
 	end
@@ -64,6 +71,7 @@ MainDriver:SetScript("OnEvent", function(_, event, arg1)
 	if event == "ADDON_LOADED" then
 		if arg1 == NS.ADDON_NAME then
 			NS.InitializeDB()
+			if NS.ApplyTheme then NS.ApplyTheme(NS.DB.theme, true) end
 			NS.RefreshAllLayouts()
 			NS.SuppressNativeAndBlizzardUI()
 		elseif (arg1 == "AzerothSurvivorsUI" or arg1 == "AzerothSurvivors") and NS.DB then

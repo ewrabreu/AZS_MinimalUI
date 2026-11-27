@@ -23,10 +23,7 @@ local function CreateFeedPool(parent, isCrit)
 		f.icon = f.iconBox:CreateTexture(nil, "ARTWORK")
 		f.icon:SetAllPoints()
 		f.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-		if f.icon.SetMask then f.icon:SetMask(NS.Media("actionbutton-mask-square")) end
-		f.border = NS.AttachAuraBorder(f.iconBox, 8, 3)
-		if isCrit then f.border:SetBackdropBorderColor(1.0, 0.78, 0.15, 1) end
-		f.txt = NS.CreateFontText(f, isCrit and 1 or -1, isCrit and "LEFT" or "RIGHT")
+		f.txt = NS.CreateFontText(f, isCrit and 2 or 0, isCrit and "LEFT" or "RIGHT")
 		f.txt:SetPoint(isCrit and "LEFT" or "RIGHT", f.iconBox, isCrit and "RIGHT" or "LEFT", isCrit and 6 or -6, 0)
 		f:Hide()
 		pool[i] = f

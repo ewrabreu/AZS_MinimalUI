@@ -21,7 +21,7 @@ for i = 1, MAX_WORLD_PINS do
 	pin.gem:SetSize(10, 14)
 	pin.gem:SetPoint("CENTER", pin.case, "CENTER", 0, 0)
 	pin.gem:SetTexture(NS.Media("point_crystal"))
-	pin.txt = NS.CreateFontText(pin, -1, "LEFT")
+	pin.txt = NS.CreateFontText(pin, 0, "LEFT")
 	pin.txt:SetPoint("LEFT", pin.case, "RIGHT", -2, 0)
 	pin:Hide()
 	WorldPinPool[i] = pin
@@ -75,9 +75,13 @@ function Mod.UpdateWorldProjection()
 						pin:SetPoint("CENTER", UIParent, "BOTTOMLEFT", sx, sy)
 						local distStr = depth and fmt(" %.0fm", depth) or ""
 						if pin._caseTex ~= TEX_PLATE then pin._caseTex = TEX_PLATE; pin.case:SetTexture(TEX_PLATE) end
-						if c.boss and tonumber(c.boss) == 1 then
+						local kind = tonumber(c.kind) or ((tonumber(c.boss) == 1) and 1 or 0)
+						if kind == 1 then
 							pin.gem:SetVertexColor(1.0, 0.45, 0.10, 1.0)
 							SetText(pin.txt, "|cffff8800Boss Chest" .. distStr .. "|r")
+						elseif kind == 2 then
+							pin.gem:SetVertexColor(0.78, 0.30, 1.00, 1.0)
+							SetText(pin.txt, "|cffcc66ffCursed Chest" .. distStr .. "|r")
 						else
 							pin.gem:SetVertexColor(1.0, 0.85, 0.20, 1.0)
 							SetText(pin.txt, "|cffffea89Chest" .. distStr .. "|r")
@@ -128,13 +132,18 @@ function Mod.UpdateWorldProjection()
 	lastPinCount = pinIdx
 	local px, py, pz, pf, vx_x, vx_y, vy_x, vy_y = GetPlayerAndCameraBasis(projectFn)
 	if NS.Modules.Compass then NS.Modules.Compass.Update3D(projectFn, px, py, pz, pf, vx_x, vx_y, vy_x, vy_y) end
-	if NS.Modules.RangeRings then NS.Modules.RangeRings.Update3D(projectFn, px, py, pz) end
 end
 
 local prevOnWorldProjected = _G.AZS_OnWorldProjected
 _G.AZS_OnWorldProjected = function(...)
 	if type(prevOnWorldProjected) == "function" then pcall(prevOnWorldProjected, ...) end
 	if NS.DB then Mod.UpdateWorldProjection() end
+end
+
+function Mod.ApplyTheme()
+	for i = 1, MAX_WORLD_PINS do
+		WorldPinPool[i].case:SetVertexColor(COLORS.crystalCase[1], COLORS.crystalCase[2], COLORS.crystalCase[3], 1)
+	end
 end
 
 NS.Modules.WorldPins = Mod

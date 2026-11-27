@@ -56,6 +56,47 @@ function NS.DeepCopy(src)
 	return out
 end
 
+function NS.GetTheme()
+	local k = (NS.DB and NS.DB.theme) or "classic"
+	return (NS.THEMES and NS.THEMES[k]) or (NS.THEMES and NS.THEMES.classic) or NS.ACTIVE_THEME
+end
+
+function NS.ApplyTheme(themeKey, skipHudUpdate)
+	local themes = NS.THEMES
+	if type(themes) ~= "table" then return end
+	local k = (type(themeKey) == "string" and themes[themeKey]) and themeKey or ((NS.DB and themes[NS.DB.theme]) and NS.DB.theme or "classic")
+	local th = themes[k]
+	if not th then return end
+	if NS.DB then NS.DB.theme = k end
+	NS.ACTIVE_THEME = th
+	if type(th.colors) == "table" then
+		for ck, src in pairs(th.colors) do
+			local dst = COLORS[ck]
+			if type(dst) == "table" and type(src) == "table" then
+				dst[1], dst[2], dst[3], dst[4] = src[1], src[2], src[3], src[4]
+			else
+				COLORS[ck] = src
+			end
+		end
+	end
+	if type(NS.Modules) == "table" then
+		for _, mod in pairs(NS.Modules) do
+			if type(mod) == "table" and type(mod.ApplyTheme) == "function" then
+				mod.ApplyTheme(th)
+			end
+		end
+	end
+	if NS.EditorHooks and type(NS.EditorHooks.ApplyTheme) == "function" then
+		NS.EditorHooks.ApplyTheme(th)
+	end
+	if not skipHudUpdate then
+		if NS.Modules and NS.Modules.Nameplates and NS.Modules.Nameplates.ScanAndUpdate then
+			NS.Modules.Nameplates.ScanAndUpdate()
+		end
+		if NS.UpdateMinimalHUD then NS.UpdateMinimalHUD() end
+	end
+end
+
 function NS.GetFontPath()
 	local idx = (NS.DB and NS.DB.fontIndex) or 1
 	return (FONTS[idx] and FONTS[idx].path) or "Fonts\\FRIZQT__.TTF"
@@ -76,7 +117,7 @@ function NS.SetText(fs, txt)
 end
 
 function NS.SetNoWrap(fs, h)
-	if h then fs:SetHeight(h) end
+	if h then fs:SetHeight(max(h, 14)) end
 	if fs.SetWordWrap then fs:SetWordWrap(false) end
 end
 
@@ -263,17 +304,17 @@ function NS.CreateResetButton(parent, tooltipText, onClick)
 	local btn = CreateFrame("Button", nil, parent)
 	btn:SetSize(18, 16)
 	btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -10, -10)
-	NS.ApplyFlatBackdrop(btn, { 0.10, 0.12, 0.16, 0.85 }, { 0.32, 0.38, 0.48, 0.80 })
-	btn.txt = NS.CreateFontText(btn, -3, "CENTER")
+	btn.txt = NS.CreateFontText(btn, -2, "CENTER")
 	btn.txt:SetPoint("CENTER", 0, 0)
-	btn.txt:SetText("|cffaaaaaaR|r")
+	btn.txt:SetText("|cff8892a4R|r")
 	btn:SetScript("OnClick", function() NS.PlayUISound("UChatScrollButton"); onClick() end)
 	btn:SetScript("OnEnter", function(self)
-		self:SetBackdropBorderColor(0.00, 0.92, 0.78, 1.0)
+		local th = NS.GetTheme and NS.GetTheme()
+		self.txt:SetText(((th and th.hex and th.hex.accent) or "|cff00ffcc") .. "R|r")
 		if GameTooltip then GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(tooltipText, 1, 0.92, 0.55); GameTooltip:Show() end
 	end)
 	btn:SetScript("OnLeave", function(self)
-		self:SetBackdropBorderColor(0.32, 0.38, 0.48, 0.80)
+		self.txt:SetText("|cff8892a4R|r")
 		if GameTooltip then GameTooltip:Hide() end
 	end)
 	return btn

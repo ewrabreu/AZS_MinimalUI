@@ -576,45 +576,134 @@ function Tracker.ResolveAuraRemaining(unit, name, spellId, duration, expTime, no
 	return 0
 end
 
-local cachedTalentKey, CachedPlayerTalents = "", {}
-function Tracker.GetPlayerTalentBuffs()
+local function IsTalentActivatableOrCooldown(tal)
+	if not tal then return false end
+	local txt = tal.text
+	if type(txt) ~= "string" or txt == "" then return false end
+	local low = lower(txt)
+	return find(low, "once every ", 1, true) ~= nil
+		or find(low, "once a second", 1, true) ~= nil
+		or find(low, "would kill you", 1, true) ~= nil
+		or find(low, "drop below", 1, true) ~= nil
+		or find(low, "when you die", 1, true) ~= nil
+		or match(low, "every%s+%d+%.?%d*%s*s[ec]") ~= nil
+		or match(low, "every%s+{v}th%s+") ~= nil
+		or match(low, "every%s+%d+th%s+") ~= nil
+		or match(low, "%d+%.?%d*%s*s[ec%a]*%s+cooldown") ~= nil
+		or match(low, "cooldown:?%s*%d+%.?%d*%s*s") ~= nil
+end
+
+local cachedTalentKey, CachedAllTalents, CachedPlayerTalents, CachedActivatableTalents = "", {}, {}, {}
+local function SortTalentsDesc(a, b)
+	local aKey = (a.maxRank <= 1) and 1 or 0
+	local bKey = (b.maxRank <= 1) and 1 or 0
+	if aKey ~= bKey then return aKey > bKey end
+	if a.treeIdx ~= b.treeIdx then return a.treeIdx < b.treeIdx end
+	if a.row ~= b.row then return a.row < b.row end
+	return a.idx < b.idx
+end
+
+function Tracker.GetAllPlayerTalents()
 	local _, cls = UnitClass("player")
-	if not cls then return CachedPlayerTalents end
+	if not cls then return CachedAllTalents end
 	local trees = _G.AZS_TALENT_TREES and _G.AZS_TALENT_TREES[cls]
-	if type(trees) ~= "table" then return CachedPlayerTalents end
+	if type(trees) ~= "table" then return CachedAllTalents end
 	if RegisterCVar then pcall(RegisterCVar, "azsTalents" .. cls, "") end
 	local ok, saved = pcall(GetCVar, "azsTalents" .. cls)
 	saved = (ok and type(saved) == "string") and saved or ""
 	local cacheKey = cls .. ":" .. saved
-	if cacheKey == cachedTalentKey then return CachedPlayerTalents end
+	if cacheKey == cachedTalentKey then return CachedAllTalents end
 	cachedTalentKey = cacheKey
+	Wipe(CachedAllTalents)
 	Wipe(CachedPlayerTalents)
-	if saved == "" then return CachedPlayerTalents end
-	local treeIdx = 1
-	for part in gmatch(saved .. "-", "([^-]*)-") do
-		local tree = trees[treeIdx]
-		if type(tree) == "table" then
-			for idx = 1, #part do
-				local rank = tonumber(sub(part, idx, idx)) or 0
-				local tal = tree[idx]
-				if rank > 0 and tal and IsTalentBuffWorthy(tal) then
-					local desc = FormatTalentText(tal, rank)
-					RecordKnownSpellMeta(nil, tal.name, desc)
-					CachedPlayerTalents[#CachedPlayerTalents + 1] = {
-						key = tal.key,
-						name = tal.name or tal.key or "Talent",
-						icon = ResolveIcon(tal.icon),
-						rank = rank,
-						maxRank = tal.ranks or 1,
-						treeName = tree.name or "",
-						text = desc,
-					}
+	Wipe(CachedActivatableTalents)
+	if saved == "" then return CachedAllTalents end
+
+	local parsed
+	if type(_G.AZS_TALENT_BUILD) == "table" and type(_G.AZS_TALENT_BUILD.parse) == "function" then
+		local okP, res = pcall(_G.AZS_TALENT_BUILD.parse, cls, saved)
+		if okP and type(res) == "table" then parsed = res end
+	end
+
+	if parsed then
+		for treeIdx = 1, #trees do
+			local tree = trees[treeIdx]
+			local rlist = parsed[treeIdx]
+			if type(tree) == "table" and type(rlist) == "table" then
+				for idx = 1, #tree do
+					local rank = tonumber(rlist[idx]) or 0
+					local tal = tree[idx]
+					if rank > 0 and tal then
+						local desc = FormatTalentText(tal, rank)
+						RecordKnownSpellMeta(nil, tal.name, desc)
+						local rec = {
+							key = tal.key,
+							name = tal.name or tal.key or "Talent",
+							icon = ResolveIcon(tal.icon),
+							rank = rank,
+							maxRank = tal.ranks or 1,
+							row = tal.row or 0,
+							treeIdx = treeIdx,
+							idx = idx,
+							treeName = tree.name or "",
+							text = desc,
+							buffWorthy = IsTalentBuffWorthy(tal),
+							activatable = IsTalentActivatableOrCooldown(tal),
+						}
+						CachedAllTalents[#CachedAllTalents + 1] = rec
+						if rec.buffWorthy then CachedPlayerTalents[#CachedPlayerTalents + 1] = rec end
+						if rec.activatable then CachedActivatableTalents[#CachedActivatableTalents + 1] = rec end
+					end
 				end
 			end
 		end
-		treeIdx = treeIdx + 1
+	else
+		local treeIdx = 1
+		for part in gmatch(saved .. "-", "([^-]*)-") do
+			local tree = trees[treeIdx]
+			if type(tree) == "table" then
+				for idx = 1, #part do
+					local rank = tonumber(sub(part, idx, idx)) or 0
+					local tal = tree[idx]
+					if rank > 0 and tal then
+						local desc = FormatTalentText(tal, rank)
+						RecordKnownSpellMeta(nil, tal.name, desc)
+						local rec = {
+							key = tal.key,
+							name = tal.name or tal.key or "Talent",
+							icon = ResolveIcon(tal.icon),
+							rank = rank,
+							maxRank = tal.ranks or 1,
+							row = tal.row or 0,
+							treeIdx = treeIdx,
+							idx = idx,
+							treeName = tree.name or "",
+							text = desc,
+							buffWorthy = IsTalentBuffWorthy(tal),
+							activatable = IsTalentActivatableOrCooldown(tal),
+						}
+						CachedAllTalents[#CachedAllTalents + 1] = rec
+						if rec.buffWorthy then CachedPlayerTalents[#CachedPlayerTalents + 1] = rec end
+						if rec.activatable then CachedActivatableTalents[#CachedActivatableTalents + 1] = rec end
+					end
+				end
+			end
+			treeIdx = treeIdx + 1
+		end
 	end
+	if #CachedAllTalents > 1 then tsort(CachedAllTalents, SortTalentsDesc) end
+	if #CachedActivatableTalents > 1 then tsort(CachedActivatableTalents, SortTalentsDesc) end
+	return CachedAllTalents
+end
+
+function Tracker.GetPlayerTalentBuffs()
+	Tracker.GetAllPlayerTalents()
 	return CachedPlayerTalents
+end
+
+function Tracker.GetPlayerActivatableTalents()
+	Tracker.GetAllPlayerTalents()
+	return CachedActivatableTalents
 end
 
 local PlayerRacialsCache, RacialSeen, RacialPool = {}, {}, {}
@@ -676,6 +765,115 @@ local function AcquireEntry(pool, idx)
 end
 
 local PlayerPool, SeenPlayerName, SeenPlayerId, TempRacials, ActiveNowNames = {}, {}, {}, {}, {}
+local SHIELD_NOT_IMMUNITY = {
+	"power word: shield", "pw_shield", "ice barrier", "ice_barrier",
+	"anti-magic shell", "anti_magic", "sacred shield", "sacred_shield",
+	"holy shield", "holy_shield", "shield wall", "shield_wall",
+	"lightning shield", "lightning_shield", "stoneform", "shield slam",
+	"shield_slam", "bone shield", "mana shield", "barkskin",
+	"fortifying brew", "icebound", "bell shield",
+}
+local IMMUNITY_NAME_PATTERNS = {
+	"divine shield", "divine_shield", "ice block", "ice_block",
+	"cloak of shadows", "cloak_of_shadows", "dispersion",
+	"divine intervention", "divine_intervention", "netherwalk",
+	"deterrence", "aspect of the turtle", "shadowmeld",
+	"will of the forsaken", "will_of_the_forsaken", "rocket jump",
+	"rocket_jump", "cheat death", "cheat_death", "celestial fortune",
+	"bm_celestial_fortune", "last resort", "vg_last_resort",
+	"untouchable", "invulnerab", "invincib",
+}
+local IMMUNITY_TIP_PATTERNS = {
+	"of immunity", "immune to all", "immune to damage",
+	"cannot take damage", "nothing can touch you", "untouchable",
+	"invulnerab", "invincib",
+}
+
+local function TextIsShieldNotImmunity(str)
+	if type(str) ~= "string" or str == "" then return false end
+	local low = lower(str)
+	if find(low, "divine shield", 1, true) or find(low, "divine_shield", 1, true) then return false end
+	for i = 1, #SHIELD_NOT_IMMUNITY do
+		if find(low, SHIELD_NOT_IMMUNITY[i], 1, true) then return true end
+	end
+	return false
+end
+
+local function TextIsImmunity(str, isTip)
+	if type(str) ~= "string" or str == "" then return false end
+	if TextIsShieldNotImmunity(str) then return false end
+	local low = lower(str)
+	if find(low, "invincible", 1, true) and find(low, "mount", 1, true) then return false end
+	local pats = isTip and IMMUNITY_TIP_PATTERNS or IMMUNITY_NAME_PATTERNS
+	for i = 1, #pats do
+		if find(low, pats[i], 1, true) then return true end
+	end
+	return false
+end
+
+function Tracker.GetPlayerImmunityRemaining(ctx)
+	Tracker.SyncTick(ctx)
+	local now, runClock = ctx.now, ctx.runClock or 0
+	local isImm, bestRem = false, 0
+
+	for i = 1, 32 do
+		local bName, _, icon, _, _, duration, expTime, _, _, _, spellId = UnitBuff("player", i)
+		if not bName then break end
+		local sid = tonumber(spellId) or 0
+		if TextIsImmunity(bName, false) then
+			isImm = true
+			local rem = Tracker.ResolveAuraRemaining("player", bName, sid, duration, expTime, now, icon, i)
+			if rem > bestRem then bestRem = rem end
+		end
+	end
+
+	local pbuffs = _G.AZS_PLAYER_BUFFS
+	if type(pbuffs) == "table" then
+		for i = 1, #pbuffs do
+			local pb = pbuffs[i]
+			if pb and not TextIsShieldNotImmunity(pb.name) and not TextIsShieldNotImmunity(pb.key)
+			and (TextIsImmunity(pb.name, false) or TextIsImmunity(pb.key, false)) then
+				local rem = (tonumber(pb.ends) or 0) - runClock
+				if rem > 0 or (tonumber(pb.duration) or 0) <= 0 then
+					isImm = true
+					if rem > bestRem then bestRem = rem end
+				end
+			end
+		end
+	end
+
+	local abuffs = _G.AZS_BUFFS
+	if type(abuffs) == "table" and #abuffs > 0 then
+		local dt = max(0, now - (tonumber(_G.AZS_BUFFS_UPDATED) or now))
+		for i = 1, #abuffs do
+			local b = abuffs[i]
+			local rawSpell = b and b.spell
+			local sid = tonumber(rawSpell) or 0
+			local rem = NormalizeServerLeft(b and b.left) - dt
+			if rem > 0 then
+				local sname = (sid > 0 and ((type(_G.AZS_SpellName) == "function" and _G.AZS_SpellName(sid)) or GetSpellInfo(sid)))
+					or (type(rawSpell) == "string" and rawSpell) or nil
+				if TextIsImmunity(sname, false) then
+					isImm = true
+					if rem > bestRem then bestRem = rem end
+				end
+			end
+		end
+	end
+
+	for _, tr in pairs(SpellCastTrack) do
+		if tr.activeRem and tr.activeRem > 0 then
+			if not TextIsShieldNotImmunity(tr.name) and not TextIsShieldNotImmunity(tr.key)
+			and (TextIsImmunity(tr.name, false) or TextIsImmunity(tr.key, false) or TextIsImmunity(tr.tip, true)) then
+				isImm = true
+				if tr.activeRem > bestRem then bestRem = tr.activeRem end
+			end
+		end
+	end
+
+	return isImm, bestRem
+end
+
 local function GetTimerFor(name, icon)
 	local low = type(name) == "string" and lower(name) or nil
 	if low and TimerByLowerName[low] then return TimerByLowerName[low] end
@@ -683,6 +881,7 @@ local function GetTimerFor(name, icon)
 	if lowIc and TimerByIcon[lowIc] then return TimerByIcon[lowIc] end
 	return nil
 end
+Tracker.GetTimerFor = GetTimerFor
 
 function Tracker.CollectPlayerBuffs(ctx, cfg, out)
 	Tracker.SyncTick(ctx)
@@ -868,119 +1067,6 @@ function Tracker.CollectPlayerBuffs(ctx, cfg, out)
 					e.cat, e.name, e.icon, e.rem = "debuff", "Hex: " .. tostring(h.key or "Curse"), "Interface\\Icons\\Spell_Shadow_CurseOfSargeras", rem
 					e.isDebuff, e.sub = true, "Cursed Chest Hex"
 					e.text = h.pct and fmt("Active hex effect (%s%%).", tostring(h.pct)) or "Active cursed chest hex."
-					out[n] = e
-				end
-			end
-		end
-	end
-
-	return n
-end
-
-local UnitPools, SeenUnitName, TempUnitRacials = {}, {}, {}
-function Tracker.CollectUnitBuffs(ctx, unit, cfg, out)
-	Tracker.SyncTick(ctx)
-	Wipe(out); Wipe(SeenUnitName)
-	local pool = UnitPools[unit]
-	if not pool then pool = {}; UnitPools[unit] = pool end
-	local now = ctx.now
-	local uName = UnitName(unit)
-	local isPlayer = (unit == "player")
-	local n = 0
-
-	for i = 1, 32 do
-		local bName, _, icon, count, _, duration, expTime, _, _, _, spellId = UnitBuff(unit, i)
-		if not bName then break end
-		local low = lower(bName)
-		if not SeenUnitName[low] then
-			SeenUnitName[low] = true
-			local sid = tonumber(spellId) or 0
-			local rem = Tracker.ResolveAuraRemaining(unit, bName, sid, duration, expTime, now, icon, i)
-			n = n + 1
-			local e = AcquireEntry(pool, n)
-			e.cat, e.name, e.icon, e.count, e.rem = "buff", bName, icon, count or 0, rem
-			e.auraIndex, e.spellId = i, sid > 0 and sid or nil
-			out[n] = e
-		end
-	end
-
-	if isPlayer and type(_G.AZS_BUFFS) == "table" then
-		local updatedAt = tonumber(_G.AZS_BUFFS_UPDATED) or now
-		local dt = max(0, now - updatedAt)
-		for i = 1, #_G.AZS_BUFFS do
-			local b = _G.AZS_BUFFS[i]
-			local sid = tonumber(b.spell) or 0
-			local rem = (tonumber(b.left) or 0) - dt
-			if sid > 0 and rem > 0 then
-				local sname = (type(_G.AZS_SpellName) == "function" and _G.AZS_SpellName(sid)) or GetSpellInfo(sid) or ("Buff #" .. sid)
-				local low = lower(sname)
-				if not SeenUnitName[low] then
-					SeenUnitName[low] = true
-					n = n + 1
-					local e = AcquireEntry(pool, n)
-					e.cat, e.name, e.icon, e.rem, e.spellId = "buff", sname, GetSpellIcon(sid), rem, sid
-					e.sub = "Active Buff"
-					out[n] = e
-				end
-			end
-		end
-	end
-
-	if not cfg or cfg.showItemBuffs ~= false then
-		local gear
-		if isPlayer then gear = _G.AZS_GEAR
-		elseif uName and _G.AZS_PEERS and _G.AZS_PEERS[uName] then gear = _G.AZS_PEERS[uName].gear end
-		if type(gear) == "table" then
-			for i = 1, #gear do
-				local g = gear[i]
-				if g then
-					local gName = g.name or g.bonus or Tracker.GetSlotLabel(g.slot)
-					local low = lower(gName)
-					if not SeenUnitName[low] then
-						SeenUnitName[low] = true
-						n = n + 1
-						local e = AcquireEntry(pool, n)
-						e.cat = "item"
-						e.name = gName
-						e.icon = ResolveIcon(g.icon)
-						e.rarity = tonumber(g.rarity) or 1
-						e.count = (g.slot == "amulet" and tonumber(g.amount)) or 0
-						e.sub = Tracker.GetSlotLabel(g.slot) .. (g.slot == "amulet" and g.amount and (" · Rank " .. g.amount) or "")
-						e.text = g.text and gsub(g.text, " · ", "\n") or ""
-						out[n] = e
-					end
-				end
-			end
-		end
-	end
-
-	if not cfg or cfg.showTalentRaceBuffs ~= false then
-		local racials = Tracker.GetUnitRacials(unit, TempUnitRacials)
-		for i = 1, #racials do
-			local r = racials[i]
-			local low = lower(r.name or "")
-			if low ~= "" and not SeenUnitName[low] then
-				SeenUnitName[low] = true
-				n = n + 1
-				local e = AcquireEntry(pool, n)
-				e.cat, e.name, e.icon, e.spellId = "race", r.name, r.icon, r.spellId
-				e.sub = "Racial Buff"
-				e.text = r.text
-				out[n] = e
-			end
-		end
-		if isPlayer then
-			local talents = Tracker.GetPlayerTalentBuffs()
-			for i = 1, #talents do
-				local t = talents[i]
-				local low = lower(t.name or "")
-				if low ~= "" and not SeenUnitName[low] then
-					SeenUnitName[low] = true
-					n = n + 1
-					local e = AcquireEntry(pool, n)
-					e.cat, e.name, e.icon = "talent", t.name, t.icon
-					e.sub = fmt("Talent · %s (%d/%d)", t.treeName, t.rank, t.maxRank)
-					e.text = t.text
 					out[n] = e
 				end
 			end

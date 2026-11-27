@@ -19,18 +19,17 @@ local AZSUI_MODULE_MAP = {
 	Info = "TopBar", PlayerStatusBars = "TopBar", UIWidgetTopCenter = "TopBar",
 	UIWidgetBelowMinimap = "TopBar", Tracker = "TopBar", Durability = "TopBar", MirrorTimers = "TopBar",
 	SurvivorsReviveBar = "StoredBadge",
-	PartyFrames = "PartyFrames", RaidFrame5 = "PartyFrames", RaidFrame25 = "PartyFrames",
-	RaidFrame40 = "PartyFrames", ArenaFrames = "PartyFrames",
-	Auras = "PlayerBuffs", SurvivorsResources = "LootPanel",
+	PartyFrames = "PlayerHUD", RaidFrame5 = "PlayerHUD", RaidFrame25 = "PlayerHUD",
+	RaidFrame40 = "PlayerHUD", ArenaFrames = "PlayerHUD",
+	Auras = "PlayerHUD", SurvivorsResources = "LootPanel",
 	NamePlates = "Nameplates", NamePlatesClassic = "Nameplates", SurvivorsTombMarks = "Nameplates",
 	Minimap = "Minimap",
 }
 
 local SplitCSV, SplitSet = NS.SplitCSV, NS.SplitSet
 local EXACT_AZSUI_GROUPS = {
-	PlayerHUD   = SplitCSV("UnitFramePlayer,UnitFramePlayerAlternate,UnitFramePlayerCastBar,UnitFramePlayerClassPower,UnitFramePet,SurvivorsPower,ActionBar1,ActionBar2,ActionBar3,ActionBar4,ActionBar5,ActionBar6,ActionBar7,ActionBar8,PetBar,StanceBar,VehicleExitButton"),
+	PlayerHUD   = SplitCSV("UnitFramePlayer,UnitFramePlayerAlternate,UnitFramePlayerCastBar,UnitFramePlayerClassPower,UnitFramePet,SurvivorsPower,ActionBar1,ActionBar2,ActionBar3,ActionBar4,ActionBar5,ActionBar6,ActionBar7,ActionBar8,PetBar,StanceBar,VehicleExitButton,UnitFrameParty,UnitFrameRaid5,UnitFrameRaid25,UnitFrameRaid40,ArenaEnemyFrames"),
 	BossBar     = SplitCSV("SurvivorsBossBar,UnitFrameTarget,UnitFrameTargetTarget,UnitFrameFocus,UnitFrameBoss1,UnitFrameBoss2,UnitFrameBoss3,UnitFrameBoss4,UnitFrameBoss5"),
-	PartyFrames = SplitCSV("UnitFrameParty,UnitFrameRaid5,UnitFrameRaid25,UnitFrameRaid40,ArenaEnemyFrames"),
 	LootPanel   = { "SurvivorsResources" },
 	StoredBadge = { "SurvivorsReviveBar" },
 	TopBar      = SplitCSV("MinimapStatusButton,StatusTrackingBar,StatusTrackingBarBonusBar,TopCenterWidgets,BelowMinimapWidgets"),
@@ -42,9 +41,7 @@ end
 local BLIZZ_GROUPS = {
 	TopBar      = SplitCSV("ZoneTextFrame,SubZoneTextFrame"),
 	BossBar     = SplitCSV("Boss1TargetFrame,Boss2TargetFrame,Boss3TargetFrame,Boss4TargetFrame"),
-	PartyFrames = SplitCSV("PartyMemberFrame1,PartyMemberFrame2,PartyMemberFrame3,PartyMemberFrame4"),
-	PlayerBuffs = SplitCSV("BuffFrame,TemporaryEnchantFrame,ConsolidatedBuffs"),
-	PlayerHUD   = SplitCSV("MainMenuBar,MainMenuBarArtFrame,MainMenuExpBar,ReputationWatchBar,MainMenuMaxLevelBar0,MainMenuMaxLevelBar1,MainMenuMaxLevelBar2,MainMenuMaxLevelBar3,ExhaustionTick,MainMenuBarPerformanceBarFrame,BonusActionBarFrame,VehicleMenuBar,PossessBarFrame,VehicleSeatIndicator,MultiBarBottomLeft,MultiBarBottomRight,MultiBarRight,MultiBarLeft,ShapeshiftBarFrame,PetActionBarFrame,MainMenuBarBackpackButton,CharacterBag0Slot,CharacterBag1Slot,CharacterBag2Slot,CharacterBag3Slot,KeyRingButton,CharacterMicroButton,SpellbookMicroButton,TalentMicroButton,AchievementMicroButton,QuestLogMicroButton,SocialsMicroButton,PVPMicroButton,LFDMicroButton,MainMenuMicroButton,HelpMicroButton,PlayerFrame,PetFrame,TargetFrame,TargetFrameToT,FocusFrame,FocusFrameToT,ComboFrame,RuneFrame,TotemFrame,CastingBarFrame,PetCastingBarFrame,MirrorTimer1,MirrorTimer2,MirrorTimer3,WatchFrame,QuestWatchFrame,DurabilityFrame"),
+	PlayerHUD   = SplitCSV("MainMenuBar,MainMenuBarArtFrame,MainMenuExpBar,ReputationWatchBar,MainMenuMaxLevelBar0,MainMenuMaxLevelBar1,MainMenuMaxLevelBar2,MainMenuMaxLevelBar3,ExhaustionTick,MainMenuBarPerformanceBarFrame,BonusActionBarFrame,VehicleMenuBar,PossessBarFrame,VehicleSeatIndicator,MultiBarBottomLeft,MultiBarBottomRight,MultiBarRight,MultiBarLeft,ShapeshiftBarFrame,PetActionBarFrame,MainMenuBarBackpackButton,CharacterBag0Slot,CharacterBag1Slot,CharacterBag2Slot,CharacterBag3Slot,KeyRingButton,CharacterMicroButton,SpellbookMicroButton,TalentMicroButton,AchievementMicroButton,QuestLogMicroButton,SocialsMicroButton,PVPMicroButton,LFDMicroButton,MainMenuMicroButton,HelpMicroButton,PlayerFrame,PetFrame,TargetFrame,TargetFrameToT,FocusFrame,FocusFrameToT,ComboFrame,RuneFrame,TotemFrame,CastingBarFrame,PetCastingBarFrame,MirrorTimer1,MirrorTimer2,MirrorTimer3,WatchFrame,QuestWatchFrame,DurabilityFrame,PartyMemberFrame1,PartyMemberFrame2,PartyMemberFrame3,PartyMemberFrame4,BuffFrame,TemporaryEnchantFrame,ConsolidatedBuffs"),
 }
 
 local ALWAYS_SHOW_ON_RESTORE = SplitSet("PlayerFrame,MainMenuBar,MainMenuBarArtFrame,MainMenuExpBar,BuffFrame,MainMenuBarBackpackButton,CharacterMicroButton,SpellbookMicroButton,TalentMicroButton,AchievementMicroButton,QuestLogMicroButton,SocialsMicroButton,PVPMicroButton,LFDMicroButton,MainMenuMicroButton,HelpMicroButton")
@@ -242,7 +239,6 @@ local function ClassifyUnitFrameMod(lowName)
 	if find(lowName, "boss", 1, true) or find(lowName, "target", 1, true) or find(lowName, "focus", 1, true) then return "BossBar"
 	elseif find(lowName, "resource", 1, true) or find(lowName, "currency", 1, true) then return "LootPanel"
 	elseif find(lowName, "revive", 1, true) then return "StoredBadge"
-	elseif find(lowName, "party", 1, true) or find(lowName, "raid", 1, true) or find(lowName, "arena", 1, true) then return "PartyFrames"
 	elseif find(lowName, "status", 1, true) or find(lowName, "widget", 1, true) then return "TopBar" end
 	return "PlayerHUD"
 end
@@ -470,7 +466,9 @@ function NS.SuppressNativeAndBlizzardUI()
 		pcall(_G.SetCVar, "CombatDamage", dmgOrig)
 		pcall(_G.SetCVar, "CombatHealing", dmgOrig)
 	end
-	if _G.MinimapCluster then
+	if NS.Modules.Minimap and NS.Modules.Minimap.ApplyMode then
+		NS.Modules.Minimap.ApplyMode()
+	elseif _G.MinimapCluster then
 		if NS.GetModuleMode("Minimap") == "original" then _G.MinimapCluster:Show() else _G.MinimapCluster:Hide() end
 	end
 	local showChat = (NS.GetModuleMode("Chat") == "original")

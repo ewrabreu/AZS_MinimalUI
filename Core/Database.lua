@@ -42,10 +42,9 @@ function NS.SyncLegacyFlagsFromModules()
 	end
 	if DB.plates  then DB.plates.enabled  = (mm.Nameplates == "minimal") end
 	if DB.compass then DB.compass.enabled = (mm.Compass    == "minimal") end
-	if DB.ranges  then DB.ranges.enabled  = (mm.RangeRings == "minimal") end
 	DB.showWorldPins  = (mm.WorldPins  == "minimal")
 	DB.showSideDamage = (mm.DamageFeed == "minimal")
-	DB.hideMinimap    = (mm.Minimap    ~= "original")
+	DB.hideMinimap    = (mm.Minimap    == "off")
 	DB.hideChat       = (mm.Chat       ~= "original")
 end
 
@@ -83,17 +82,13 @@ function NS.ApplyModulePreset(preset)
 	ApplyModuleChanges()
 end
 
-local BETA_BOX_TO_FLAG = { BetaRunPace = "runPace" }
 function NS.IsBoxHidden(boxKey)
-	local betaFlag = BETA_BOX_TO_FLAG[boxKey]
-	if betaFlag and not (NS.DB and NS.DB.beta and NS.DB.beta[betaFlag]) then return true end
 	local modKey = NS.BOX_TO_MODULE and NS.BOX_TO_MODULE[boxKey]
 	if modKey and NS.GetModuleMode(modKey) ~= "minimal" then return true end
 	return NS.DB and NS.DB.hiddenBoxes and NS.DB.hiddenBoxes[boxKey] == true
 end
 
 local LEGACY_BOX_MODS = { "TopBar", "BossBar", "PlayerHUD", "StoredBadge", "StatsPanel", "MeterPanel" }
-local V26_BOXES = { "PartyFrames", "PartyMeter", "PlayerBuffs", "PartyBuffs" }
 
 function NS.InitializeDB()
 	local prev = (type(_G.AZS_MinimalUI_DB) == "table" and tonumber(_G.AZS_MinimalUI_DB.layoutVersion)) or 0
@@ -113,7 +108,6 @@ function NS.InitializeDB()
 			local mm = DB.moduleModes
 			mm.Nameplates = (DB.plates and DB.plates.enabled == false) and "off" or "minimal"
 			mm.Compass    = (DB.compass and DB.compass.enabled == false) and "off" or "minimal"
-			mm.RangeRings = (DB.ranges and DB.ranges.enabled == false) and "off" or "minimal"
 			mm.WorldPins  = (DB.showWorldPins == false) and "off" or "minimal"
 			mm.DamageFeed = (DB.showSideDamage == false) and "off" or "minimal"
 			mm.Minimap    = (DB.hideMinimap == false) and "original" or "off"
@@ -123,41 +117,109 @@ function NS.InitializeDB()
 				if DB.hiddenBoxes and DB.hiddenBoxes[k] then mm[k] = "off" end
 			end
 		end
-		if prev < 26 then
-			for i = 1, #V26_BOXES do local k = V26_BOXES[i]; boxes[k] = NS.DeepCopy(defBoxes[k]) end
-		end
 		if prev < 27 then boxes.LootPanel = NS.DeepCopy(defBoxes.LootPanel) end
-		if prev < 28 then boxes.BetaRunPace = NS.DeepCopy(defBoxes.BetaRunPace) end
-		if prev < 29 and boxes.PartyFrames then
-			if (boxes.PartyFrames.alpha or 0) <= 0.01 then boxes.PartyFrames.alpha = DB.bgAlpha or 0.72 end
-			boxes.PartyFrames.width, boxes.PartyFrames.height = 246, 142
-		end
 		if prev < 30 then
 			boxes.BetaStatCaps, boxes.BetaCenterArcs = nil, nil
-			if boxes.BetaRunPace then
-				boxes.BetaRunPace.width  = max(boxes.BetaRunPace.width or 0, 258)
-				boxes.BetaRunPace.height = max(boxes.BetaRunPace.height or 0, 236)
-			else
-				boxes.BetaRunPace = NS.DeepCopy(defBoxes.BetaRunPace)
+		end
+		if prev < 34 then
+			boxes.PartyFrames, boxes.PartyBuffs, boxes.BetaRunPace = nil, nil, nil
+			DB.beta, DB.betaPB = nil, nil
+			if DB.moduleModes then
+				DB.moduleModes.PartyFrames = nil
+				DB.moduleModes.PartyBuffs = nil
+			end
+			if DB.buffs then
+				DB.buffs.partyBuffMode = nil
+				DB.buffs.showPartyBuffsWhenSolo = nil
+			end
+			boxes.EliteTimer = NS.DeepCopy(defBoxes.EliteTimer)
+			if boxes.StatsPanel then boxes.StatsPanel.height = max(boxes.StatsPanel.height or 0, 288) end
+			if boxes.MeterPanel then boxes.MeterPanel.height = max(boxes.MeterPanel.height or 0, 234) end
+			if boxes.PlayerHUD then boxes.PlayerHUD.height = max(boxes.PlayerHUD.height or 0, 198) end
+			if boxes.StoredBadge and boxes.StoredBadge.point == "BOTTOM" and (boxes.StoredBadge.y or 0) < 210 then
+				boxes.StoredBadge.y = 218
 			end
 		end
-		if prev < 31 and boxes.BetaRunPace then
-			boxes.BetaRunPace.height = max(boxes.BetaRunPace.height or 0, 300)
-		end
-		if prev < 32 then
-			boxes.CooldownBuffs = NS.DeepCopy(defBoxes.CooldownBuffs)
-			if boxes.PlayerBuffs then boxes.PlayerBuffs.height = max(boxes.PlayerBuffs.height or 0, 126) end
-			if boxes.PartyBuffs then
-				boxes.PartyBuffs.width  = max(boxes.PartyBuffs.width or 0, 232)
-				boxes.PartyBuffs.height = max(boxes.PartyBuffs.height or 0, 148)
+		if prev < 36 then
+			boxes.SquareMinimap = nil
+			boxes.Minimap = NS.DeepCopy(defBoxes.Minimap)
+			DB.minimap = NS.DeepCopy(NS.DEFAULTS.minimap)
+			if DB.moduleModes then
+				DB.moduleModes.SquareMinimap = nil
+				DB.moduleModes.Minimap = "minimal"
+			end
+			if boxes.EliteTimer and boxes.EliteTimer.point == "TOPLEFT" and ((boxes.EliteTimer.y or 0) == -262 or (boxes.EliteTimer.y or 0) == -244) then
+				boxes.EliteTimer.y = -238
 			end
 		end
-		if prev < 33 and boxes.StatsPanel then
-			boxes.StatsPanel.height = max(boxes.StatsPanel.height or 0, 272)
+		if prev < 37 then
+			boxes.PlayerBuffs = nil
+			if DB.moduleModes then DB.moduleModes.PlayerBuffs = nil end
+			if boxes.PlayerHUD then
+				boxes.PlayerHUD.width = max(boxes.PlayerHUD.width or 0, 512)
+				boxes.PlayerHUD.height = max(boxes.PlayerHUD.height or 0, 236)
+			end
+			if boxes.StoredBadge and boxes.StoredBadge.point == "BOTTOM" and (boxes.StoredBadge.y or 0) < 240 then
+				boxes.StoredBadge.y = 246
+			end
+			if boxes.CooldownBuffs and boxes.CooldownBuffs.point == "TOPRIGHT" and (boxes.CooldownBuffs.x or 0) == -286 then
+				boxes.CooldownBuffs.x = -12
+			end
+		end
+		if prev < 38 then
+			if boxes.PlayerHUD then
+				boxes.PlayerHUD.width = max(boxes.PlayerHUD.width or 0, 544)
+				boxes.PlayerHUD.height = max(boxes.PlayerHUD.height or 0, 248)
+			end
+			if boxes.StoredBadge and boxes.StoredBadge.point == "BOTTOM" and (boxes.StoredBadge.y or 0) < 255 then
+				boxes.StoredBadge.y = 260
+			end
+		end
+		if prev < 39 then
+			boxes.CooldownBuffs, boxes.PartyMeter = nil, nil
+			DB.party, DB.buffs = nil, nil
+			if DB.moduleModes then
+				DB.moduleModes.CooldownBuffs = nil
+				DB.moduleModes.PartyMeter = nil
+			end
+			if boxes.MeterPanel then
+				boxes.MeterPanel.width = max(boxes.MeterPanel.width or 0, 262)
+			end
+		end
+		if prev < 40 then
+			DB.ranges = nil
+			if DB.moduleModes then DB.moduleModes.RangeRings = nil end
+		end
+		if prev < 41 then
+			boxes.RunObjectives   = NS.DeepCopy(defBoxes.RunObjectives)
+			boxes.EventBanner     = NS.DeepCopy(defBoxes.EventBanner)
+			boxes.ClassExtra      = NS.DeepCopy(defBoxes.ClassExtra)
+			boxes.SummonTracker   = NS.DeepCopy(defBoxes.SummonTracker)
+			boxes.HolidayCurrency = NS.DeepCopy(defBoxes.HolidayCurrency)
+		end
+		if prev < 42 then
+			DB.bgAlpha, DB.borderAlpha = 0.00, 0.00
+			for _, cfg in pairs(boxes) do
+				if type(cfg) == "table" then cfg.alpha = 0.00 end
+			end
+		end
+		if prev < 43 then
+			DB.fontSize = 11
+			if boxes.EliteTimer then
+				boxes.EliteTimer.width = max(boxes.EliteTimer.width or 0, 236)
+				boxes.EliteTimer.height = max(boxes.EliteTimer.height or 0, 138)
+			end
+			if boxes.LootPanel then
+				boxes.LootPanel.height = max(boxes.LootPanel.height or 0, 208)
+			end
+		end
+		if prev < 44 then
+			if not (NS.THEMES and NS.THEMES[DB.theme]) then DB.theme = "classic" end
 		end
 		DB.layoutVersion = NS.LAYOUT_VERSION
 	end
 	NS.SyncLegacyFlagsFromModules()
+	if NS.ApplyTheme then NS.ApplyTheme(DB.theme, true) end
 	DB.locked = true
 end
 
@@ -165,5 +227,6 @@ function NS.ResetAllToDefaults()
 	_G.AZS_MinimalUI_DB = NS.CopyDefaults(NS.DEFAULTS, {})
 	NS.DB = _G.AZS_MinimalUI_DB
 	NS.SyncLegacyFlagsFromModules()
+	if NS.ApplyTheme then NS.ApplyTheme(NS.DB.theme, true) end
 	NS.DB.locked = true
 end

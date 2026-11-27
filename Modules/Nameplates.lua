@@ -158,10 +158,10 @@ local function UpdateSkinnedPlate(plate)
 		w, h, showName, fontDelta = sz.bossW, sz.bossH, true, 0
 		if cfg.colorRarityNames then barCol, nameCol = COLORS.bossOrange, COLORS.bossOrange end
 	elseif tier == 2 then
-		w, h, showName, fontDelta = sz.eliteW, sz.eliteH, true, -1
+		w, h, showName, fontDelta = sz.eliteW, sz.eliteH, true, 0
 		if cfg.colorRarityNames then barCol, nameCol = COLORS.rarePurple, COLORS.rarePurple end
 	elseif tier == 1 then
-		w, h, showName, fontDelta = sz.eliteW, sz.eliteH, true, -1
+		w, h, showName, fontDelta = sz.eliteW, sz.eliteH, true, 0
 		if cfg.colorRarityNames then barCol, nameCol = COLORS.eliteBlue, COLORS.eliteBlue end
 	end
 
@@ -252,7 +252,7 @@ local function SkinBlizzardNameplate(plate)
 	nameLabel:SetJustifyH("CENTER")
 	nameLabel:SetShadowColor(0, 0, 0, 0.95)
 	nameLabel:SetShadowOffset(1, -1)
-	nameLabel:SetFont(NS.GetFontPath(), 10, "OUTLINE")
+	nameLabel:SetFont(NS.GetFontPath(), 11, "OUTLINE")
 	local data = {
 		origHpBar = origHpBar, origHpTex = origHpTex, hpRegs = hpRegs, origCastBar = origCastBar,
 		origName = origName, origNameH = origNameH, origLevel = origLevel, origLevelH = origLevelH,
@@ -311,6 +311,12 @@ end
 
 function Mod.Update()
 	if NS.GetModuleMode("Nameplates") == "minimal" then RefreshKnownUnitRanks() end
+end
+
+function Mod.ApplyTheme()
+	for _, d in pairs(SkinnedPlates) do
+		d.lastBarCol, d.lastNameCol = nil, nil
+	end
 end
 
 NS.Modules.Nameplates = Mod

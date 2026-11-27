@@ -18,7 +18,7 @@ local MINI_BTN_BACKDROP = {
 }
 local ALWAYS_TOGGLE_VIS = {
 	TopBar = true, PlayerHUD = true, StatsPanel = true,
-	MeterPanel = true, Compass = true, PlayerBuffs = true, CooldownBuffs = true,
+	MeterPanel = true, Compass = true, Minimap = true, EliteTimer = true,
 }
 
 local function CreateOverlayMiniBtn(ov, w, h, pt, ox, oy, levelOff, r, g, b, a, br, bg, bb, ba)
