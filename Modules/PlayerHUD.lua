@@ -965,6 +965,14 @@ function Mod.Update(ctx)
 	ctx.hpPct = hpPct
 	if NS.IsBoxHidden("PlayerHUD") and not ctx.isEditing then return end
 
+	local runEnded = (run and (run.ph == "victory" or run.ph == "dead")) and true or false
+	if runEnded and not ctx.isEditing then
+		if PlayerHUD:IsShown() then PlayerHUD:Hide() end
+		return
+	elseif not PlayerHUD:IsShown() then
+		PlayerHUD:Show()
+	end
+
 	if BT and BT.SyncTick then BT.SyncTick(ctx) end
 
 	local totalShield = ((run and tonumber(run.sh)) or 0) + ((run and tonumber(run.bsh)) or 0)

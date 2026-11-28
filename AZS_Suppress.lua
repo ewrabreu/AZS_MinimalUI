@@ -49,7 +49,7 @@ local CHAT_FRAMES = SplitCSV("ChatFrame1,ChatFrame2,ChatFrame3,ChatFrame4,ChatFr
 local SINGLE_KEYS = SplitCSV("frame,header,bar,anchor,button")
 local LIST_KEYS   = SplitCSV("bars,units,rows,icons")
 local SAFE_STRATA = SplitSet("HIGH,DIALOG,FULLSCREEN,FULLSCREEN_DIALOG,TOOLTIP")
-local SAFE_NAME_PATTERNS = SplitCSV("azs_minui,micromenu,gamemenu,interfaceoptions,videooptions,audiooptions,keybinding,staticpopup,chatframe,minimap,tooltip,dropdown,characterframe,spellbook,talent,quest,worldmap,container,merchant,bankframe,mailframe,friendsframe,guildframe,macroframe,helpframe,uierrors,raidwarning,lfg,pvpframe,achievement,calendar,timemanager,screen,picker,choice,levelup,upgrade,shop,vendor,dialog,popup,modal,menu,options,config,edit,controller,mount,bag,alert,grouploot,lootframe,summary,reward,endrun,death,blizzard,movieframe,cinematic,worldstate,zonetext")
+local SAFE_NAME_PATTERNS = SplitCSV("azs_minui,azs_buildadvisor,azs_ba_,azsend,azsspoils,azsreward,azsvictory,azsrunstats,azsdeathlog,azsspectate,azswatch,azsvault,azscard,azsbag,azsinspect,azsfriend,azsping,azsemote,micromenu,gamemenu,interfaceoptions,videooptions,audiooptions,keybinding,staticpopup,chatframe,minimap,tooltip,dropdown,characterframe,spellbook,talent,quest,worldmap,container,merchant,bankframe,mailframe,friendsframe,guildframe,macroframe,helpframe,uierrors,raidwarning,lfg,pvpframe,achievement,calendar,timemanager,screen,picker,choice,levelup,upgrade,shop,vendor,dialog,popup,modal,menu,options,config,edit,controller,mount,bag,alert,grouploot,lootframe,summary,reward,endrun,death,blizzard,movieframe,cinematic,worldstate,zonetext")
 local AZSUI_NAME_PATTERNS = SplitCSV("^azerothsurvivors,^azsui,^azeriteui,^azerite,^ouf_azs,^ouf_azerite")
 
 local function WantsModOriginal(modKey)
@@ -314,21 +314,44 @@ end
 local function PathIsAZSUI(texPath)
 	if type(texPath) ~= "string" or texPath == "" then return false end
 	local low = lower(texPath)
+	if find(low, "border-tooltip", 1, true) or find(low, "border-aura", 1, true)
+	or find(low, "actionbutton-backdrop", 1, true) or find(low, "actionbutton-border", 1, true) then
+		return false
+	end
 	return find(low, "azerothsurvivorsui", 1, true) ~= nil or find(low, "azeriteui", 1, true) ~= nil
+end
+
+local function PathIsProtectedGameUI(texPath)
+	if type(texPath) ~= "string" or texPath == "" then return false end
+	local low = lower(texPath)
+	return find(low, "128-redbutton", 1, true) ~= nil or find(low, "foreverlogin", 1, true) ~= nil
+end
+
+local function TextIsProtectedGameUI(txt)
+	if type(txt) ~= "string" or txt == "" then return false end
+	local low = lower(txt)
+	return find(low, "show results", 1, true) ~= nil or find(low, "results in", 1, true) ~= nil
+		or find(low, "resultado", 1, true) ~= nil or find(low, "spectat", 1, true) ~= nil
+		or find(low, "try again", 1, true) ~= nil or find(low, "return to menu", 1, true) ~= nil
+		or find(low, "keep fighting", 1, true) ~= nil or find(low, "victory", 1, true) ~= nil
 end
 
 local FrameFingerprint
 local function CheckRegions(i, limit, ...)
-	if i > limit then return false end
+	if i > limit then return 0 end
 	local r = select(i, ...)
 	if r and r.GetObjectType then
 		local otype = r:GetObjectType()
-		if otype == "Texture" and r.GetTexture and PathIsAZSUI(r:GetTexture()) then return true
+		if otype == "Texture" and r.GetTexture then
+			local tex = r:GetTexture()
+			if PathIsProtectedGameUI(tex) then return -1 end
+			if PathIsAZSUI(tex) then return 1 end
 		elseif otype == "FontString" and r.GetText then
 			local txt = r:GetText()
+			if TextIsProtectedGameUI(txt) then return -1 end
 			if type(txt) == "string" and txt ~= "" then
 				local low = lower(txt)
-				if find(low, "approaches", 1, true) or find(low, "se aproxima", 1, true) then return true end
+				if find(low, "approaches", 1, true) or find(low, "se aproxima", 1, true) then return 1 end
 			end
 		end
 	end
@@ -336,26 +359,40 @@ local function CheckRegions(i, limit, ...)
 end
 
 local function CheckChildren(depth, i, limit, ...)
-	if i > limit then return false end
-	if FrameFingerprint(select(i, ...), depth) then return true end
+	if i > limit then return 0 end
+	local res = FrameFingerprint(select(i, ...), depth)
+	if res == -1 then return -1 end
+	if res == 1 then
+		local rest = CheckChildren(depth, i + 1, limit, ...)
+		return rest == -1 and -1 or 1
+	end
 	return CheckChildren(depth, i + 1, limit, ...)
 end
 
 FrameFingerprint = function(frame, depth)
-	if not frame then return false end
+	if not frame then return 0 end
+	local hit = 0
 	if frame.GetBackdrop then
 		local ok, bd = pcall(frame.GetBackdrop, frame)
-		if ok and type(bd) == "table" and (PathIsAZSUI(bd.bgFile) or PathIsAZSUI(bd.edgeFile)) then return true end
+		if ok and type(bd) == "table" and (PathIsAZSUI(bd.bgFile) or PathIsAZSUI(bd.edgeFile)) then hit = 1 end
 	end
 	if frame.GetRegions then
 		local n = frame:GetNumRegions()
-		if n > 0 and CheckRegions(1, min(n, 32), frame:GetRegions()) then return true end
+		if n > 0 then
+			local r = CheckRegions(1, min(n, 32), frame:GetRegions())
+			if r == -1 then return -1 end
+			if r == 1 then hit = 1 end
+		end
 	end
 	if depth < 2 and frame.GetChildren then
 		local n = frame:GetNumChildren()
-		if n > 0 and CheckChildren(depth + 1, 1, min(n, 18), frame:GetChildren()) then return true end
+		if n > 0 then
+			local c = CheckChildren(depth + 1, 1, min(n, 18), frame:GetChildren())
+			if c == -1 then return -1 end
+			if c == 1 then hit = 1 end
+		end
 	end
-	return false
+	return hit
 end
 
 local function InspectUIParentChild(f, inCombat, sw, sh)
@@ -376,7 +413,10 @@ local function InspectUIParentChild(f, inCombat, sw, sh)
 	local isFull = (w >= sw * 0.72 and h >= sh * 0.72)
 	local isCorner = (w > 0 and h > 0 and w <= 56 and h <= 56 and cx and cy and cx > (sw - 440) and cy < 110)
 	if not isFull and not isCorner and (w >= 1 or h >= 12) then
-		if FrameFingerprint(f, 0) then
+		local fp = FrameFingerprint(f, 0)
+		if fp == -1 then
+			SafeFrameCache[f] = true
+		elseif fp == 1 then
 			local modKey = ClassifyUnitFrameMod(lowName)
 			if not WantsModOriginal(modKey) then SuppressTargetFrame(f, modKey, inCombat) end
 		elseif f.IsShown and f:IsShown() then

@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/WoW_Client-3.3.5a_(WotLK)-00ffcc?style=for-the-badge&logoColor=white&labelColor=0e1420" alt="WoW 3.3.5a" />
   <img src="https://img.shields.io/badge/Language-Lua_5.1-3b82f6?style=for-the-badge&logo=lua&logoColor=white&labelColor=0e1420" alt="Lua 5.1" />
-  <img src="https://img.shields.io/badge/Version-3.6.0-ffea89?style=for-the-badge&labelColor=0e1420" alt="Version 3.6.0" />
+  <img src="https://img.shields.io/badge/Version-3.6.1-ffea89?style=for-the-badge&labelColor=0e1420" alt="Version 3.6.1" />
 </p>
 
 <h3 align="center">
