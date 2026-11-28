@@ -132,7 +132,7 @@ local function IsOurOwnFrame(f)
 end
 
 local function SuppressTargetFrame(f, modKey, inCombat)
-	if not f or type(f) ~= "table" or IsOurOwnFrame(f) or f == _G.Minimap or f == _G.MinimapCluster then return end
+	if not f or type(f) ~= "table" or IsOurOwnFrame(f) or f == _G.Minimap or f == _G.MinimapCluster or f == _G.AZSHudFrame then return end
 	if inCombat and f.IsProtected and f:IsProtected() then
 		if not PendingCombatSuppress[f] then
 			PendingCombatSuppress[f] = { modKey = modKey, origAlpha = (f.GetAlpha and f:GetAlpha()) or 1 }
@@ -297,6 +297,7 @@ end
 
 local function IsSafeName(lowName)
 	if not lowName or lowName == "" then return false end
+	if sub(lowName, 1, 3) == "azs" and sub(lowName, 1, 5) ~= "azsui" then return true end
 	for i = 1, #SAFE_NAME_PATTERNS do
 		if find(lowName, SAFE_NAME_PATTERNS[i], 1, true) then return true end
 	end
@@ -500,6 +501,14 @@ function NS.SuppressNativeAndBlizzardUI()
 		end
 	end
 	applyingOurSuppress = false
+	local hudFrame = _G.AZSHudFrame
+	if hudFrame and hudFrame.SetAlpha then
+		pcall(hudFrame.SetAlpha, hudFrame, WantsModOriginal("TopBar") and 1 or 0)
+	end
+	local mapInfo = _G.AZSMapInfo
+	if mapInfo and mapInfo.SetAlpha then
+		pcall(mapInfo.SetAlpha, mapInfo, (WantsModOriginal("TopBar") or WantsModOriginal("Minimap")) and 1 or 0)
+	end
 	NS.ScanAndSuppressAZSUIFrames(true)
 	if type(_G.SetCVar) == "function" then
 		local dmgOrig = (NS.GetModuleMode("DamageFeed") == "original") and "1" or "0"

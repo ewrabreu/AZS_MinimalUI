@@ -1,7 +1,7 @@
 local ADDON_NAME, NS = ...
 if type(NS) ~= "table" then _G.AZS_MinimalUI_NS = _G.AZS_MinimalUI_NS or {}; NS = _G.AZS_MinimalUI_NS end
 NS.ADDON_NAME     = ADDON_NAME or "AZS_MinimalUI"
-NS.VERSION        = "3.6.1"
+NS.VERSION        = "3.6.2"
 NS.LAYOUT_VERSION = 44
 NS.AZS_MEDIA      = "Interface\\AddOns\\AzerothSurvivorsUI\\Assets\\"
 NS.OWN_MEDIA      = "Interface\\AddOns\\AZS_MinimalUI\\Assets\\"

@@ -2,7 +2,7 @@
 ## Title: |cff00ffccAZS Minimal UI|r |cff999999(90% Free Screen · Modular)|r
 ## Notes: Ultra-minimalist modular UI for Azeroth Survivors Reborn with 90% free screen, 360 compass, custom nameplates, and visual drag editor.
 ## Author: Ewerton
-## Version: 3.6.1
+## Version: 3.6.2
 ## SavedVariables: AZS_MinimalUI_DB
 ## OptionalDeps: AzerothSurvivors, AzerothSurvivorsAPI, AzerothSurvivorsUI
 Core\Config.lua

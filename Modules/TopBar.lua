@@ -66,7 +66,10 @@ function Mod.Update(ctx)
 		local zname = zone.zname or zone.zone or "Azeroth"
 		local diff = zone.diff or ("T" .. tostring(zone.dt or 0))
 		local heroic = (tonumber(zone.heroic) or 0) > 0 and (" |cffff5555H" .. zone.heroic .. "|r") or ""
-		SetText(TopBar.leftText, fmt("%s%s|r |cffbbbbbb[%s%s]|r  |cffffffff%s|r", titleHex, zname, diff, heroic, FormatTime(ctx.runClock)))
+		local stateTag = ""
+		if run.ph == "paused" then stateTag = "  |cffffd100PAUSED|r"
+		elseif run.ph == "ready" then stateTag = "  |cff66ff88READY|r" end
+		SetText(TopBar.leftText, fmt("%s%s|r |cffbbbbbb[%s%s]|r  |cffffffff%s|r%s", titleHex, zname, diff, heroic, FormatTime(ctx.runClock), stateTag))
 
 		local nbs, nbc, nb = run.nbs, tonumber(run.nbc) or 0, tonumber(run.nb) or -1
 		local bossStatus, cTex
